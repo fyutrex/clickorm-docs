@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="900" height="260" viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="g1" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff1eb7"/>
+      <stop offset="60%" stop-color="#b10fa0"/>
+      <stop offset="100%" stop-color="#5a0b66"/>
+    </linearGradient>
+
+    <radialGradient id="shine" cx="30%" cy="25%" r="60%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.9)"/>
+      <stop offset="50%" stop-color="rgba(255,255,255,0.2)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+
+    <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+
+    <!-- mask to cut a 'C' shape from the ball -->
+    <mask id="maskC">
+      <rect width="100%" height="100%" fill="white"/>
+      <!-- cut-out -->
+      <circle cx="120" cy="120" r="72" fill="black"/>
+      <rect x="120" y="48" width="160" height="144" rx="72" ry="72" fill="black"/>
+    </mask>
+
+  </defs>
+
+  <!-- background for preview (transparent in saved svg) -->
+  <rect width="100%" height="100%" fill="none"/>
+
+  <!-- Glossy ball with gradient -->
+  <g transform="translate(60,20)">
+    <g filter="url(#softShadow)">
+      <circle cx="120" cy="120" r="100" fill="url(#g1)"/>
+      <circle cx="120" cy="120" r="100" fill="url(#shine)" style="mix-blend-mode: screen;" />
+      <!-- inner glossy highlight -->
+      <ellipse cx="90" cy="80" rx="50" ry="30" fill="rgba(255,255,255,0.08)"/>
+    </g>
+
+    <!-- 'C' cutout to create the C-shape using mask -->
+    <g mask="url(#maskC)">
+      <!-- overlay to emphasize cut -->
+      <circle cx="120" cy="120" r="100" fill="rgba(10,10,10,0.15)"/>
+    </g>
+
+    <!-- small clickable dot (referencing 'click') -->
+    <circle cx="215" cy="180" r="10" fill="#ff1eb7" stroke="#fff" stroke-width="2" />
+    <circle cx="215" cy="180" r="14" fill="none" stroke="rgba(255,30,183,0.18)" stroke-width="6"/>
+  </g>
+
+  <!-- Text: ClickORM -->
+  <g transform="translate(282,150)">
+    <!-- 'Click' -->
+    <text x="0" y="20" font-family="Inter, Roboto, Arial, sans-serif" font-weight="700" font-size="56" fill="#ffffff" opacity="0.95">
+      Click
+    </text>
+
+    <!-- 'ORM' with gradient fill to match the ball -->
+    <text x="135" y="20" font-family="Inter, Roboto, Arial, sans-serif" font-weight="800" font-size="64" fill="url(#g1)">
+      ORM
+    </text>
+
+    <!-- tagline -->
+    <text x="0" y="40" font-family="Inter, Roboto, Arial, sans-serif" font-weight="500" font-size="14" fill="#cfc7d6" opacity="0.9">
+      TypeScript-native • Type-safe • Lightning-fast
+    </text>
+  </g>
+
+  <!-- Optional small version mark (C inside ball) centered on ball for favicon use -->
+  <g id="smallMarker" transform="translate(60,20)">
+    <circle cx="120" cy="120" r="36" fill="url(#g1)" opacity="0.0"/>
+  </g>
+</svg>

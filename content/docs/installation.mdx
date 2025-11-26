@@ -1,0 +1,114 @@
+---
+title: Installation
+description: Install ClickORM in your project
+---
+
+# Installation
+
+ClickORM can be installed using your favorite package manager.
+
+## Prerequisites
+
+Before installing ClickORM, ensure you have:
+
+- **Node.js** 16.x or higher
+- **TypeScript** 4.9 or higher (recommended)
+- **ClickHouse** server running (local or remote)
+
+## Package Managers
+
+### npm
+
+```bash
+npm install clickorm
+```
+
+### yarn
+
+```bash
+yarn add clickorm
+```
+
+### pnpm
+
+```bash
+pnpm add clickorm
+```
+
+## Verify Installation
+
+After installation, verify that ClickORM is correctly installed:
+
+```typescript
+import { ClickORM } from '@clickorm/core';
+
+console.log(ClickORM.version);
+```
+
+## TypeScript Configuration
+
+For the best TypeScript experience, ensure your `tsconfig.json` includes:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true
+  }
+}
+```
+
+## Development Dependencies
+
+For development, you may also want to install:
+
+```bash
+npm install --save-dev @types/node typescript ts-node
+```
+
+## Next Steps
+
+Once installed, proceed to the [Quick Start](/docs/quick-start) guide to create your first ClickORM project.
+
+## Troubleshooting
+
+### Module Not Found
+
+If you encounter a "module not found" error:
+
+1. Clear your package manager cache:
+   ```bash
+   npm cache clean --force
+   ```
+
+2. Delete `node_modules` and reinstall:
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+### TypeScript Errors
+
+If you see TypeScript-related errors:
+
+- Ensure you're using TypeScript 4.9 or higher
+- Check that `strict` mode is enabled in your `tsconfig.json`
+- Verify all type definitions are installed
+
+### Connection Issues
+
+If you can't connect to ClickHouse:
+
+- Verify ClickHouse is running: `curl http://localhost:8123/ping`
+- Check your firewall settings
+- Ensure correct host and port in your configuration
+
+For more help, visit our [GitHub Issues](https://github.com/yourusername/clickorm/issues).

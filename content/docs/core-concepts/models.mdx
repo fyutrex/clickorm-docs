@@ -1,0 +1,497 @@
+---
+title: Models
+description: Define and work with ClickORM models
+---
+
+# Models
+
+Models are the heart of ClickORM. They represent your database tables and provide a type-safe interface for interacting with your data.
+
+## Defining Models
+
+Create a model by extending the `Model` class and using decorators:
+
+```typescript
+import { Model, Column, Table } from '@clickorm/core';
+
+@Table('users')
+export class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'String', unique: true })
+  email!: string;
+
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+}
+```
+
+## Table Decorator
+
+The `@Table` decorator defines the table name and options:
+
+```typescript
+@Table('users', {
+  engine: 'MergeTree',
+  orderBy: ['created_at'],
+  partitionBy: 'toYYYYMM(created_at)',
+  settings: {
+    index_granularity: 8192,
+  },
+})
+class User extends Model {
+  // columns...
+}
+```
+
+### Table Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `engine` | string | ClickHouse engine (default: `MergeTree`) |
+| `orderBy` | string[] | ORDER BY clause for MergeTree |
+| `partitionBy` | string | PARTITION BY expression |
+| `primaryKey` | string[] | Primary key columns |
+| `settings` | object | Table settings |
+| `softDelete` | boolean | Enable soft deletes |
+| `timestamps` | boolean | Auto-manage created_at/updated_at |
+
+## Column Decorator
+
+The `@Column` decorator defines column properties:
+
+```typescript
+@Column({
+  type: 'String',
+  nullable: true,
+  default: 'Unknown',
+  comment: 'User display name',
+})
+name?: string;
+```
+
+### Column Options
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `type` | string | ClickHouse data type |
+| `primary` | boolean | Primary key column |
+| `nullable` | boolean | Allow NULL values |
+| `default` | any | Default value |
+| `unique` | boolean | Unique constraint |
+| `comment` | string | Column comment |
+| `codec` | string | Compression codec |
+
+### Supported Data Types
+
+ClickORM supports all ClickHouse data types:
+
+```typescript
+class Example extends Model {
+  // Numeric types
+  @Column({ type: 'Int8' })
+  tinyInt!: number;
+
+  @Column({ type: 'Int32' })
+  regularInt!: number;
+
+  @Column({ type: 'Int64' })
+  bigInt!: bigint;
+
+  @Column({ type: 'Float64' })
+  decimal!: number;
+
+  // String types
+  @Column({ type: 'String' })
+  text!: string;
+
+  @Column({ type: 'FixedString(10)' })
+  fixedText!: string;
+
+  // Date/Time types
+  @Column({ type: 'Date' })
+  date!: Date;
+
+  @Column({ type: 'DateTime' })
+  timestamp!: Date;
+
+  @Column({ type: 'DateTime64(3)' })
+  preciseTimestamp!: Date;
+
+  // Special types
+  @Column({ type: 'UUID' })
+  id!: string;
+
+  @Column({ type: 'Array(String)' })
+  tags!: string[];
+
+  @Column({ type: 'Nullable(String)' })
+  optionalText?: string;
+
+  @Column({ type: 'LowCardinality(String)' })
+  category!: string;
+
+  @Column({ type: 'Enum8(\'active\' = 1, \'inactive\' = 2)' })
+  status!: string;
+}
+```
+
+## Model Methods
+
+### Static Methods
+
+ClickORM provides convenient static methods for database operations:
+
+```typescript
+// Create
+const user = await User.create({
+  id: crypto.randomUUID(),
+  name: 'John Doe',
+  email: 'john@example.com',
+  created_at: new Date(),
+});
+
+// Find all
+const users = await User.findAll();
+
+// Find with conditions
+const activeUsers = await User.findAll({
+  where: { status: 'active' },
+  limit: 10,
+});
+
+// Find one
+const user = await User.findOne({
+  where: { email: 'john@example.com' },
+});
+
+// Find by primary key
+const user = await User.findByPk('user-id-123');
+
+// Update
+await User.update(
+  { name: 'Jane Doe' },
+  { where: { id: userId } }
+);
+
+// Delete
+await User.delete({
+  where: { email: 'old@example.com' },
+});
+
+// Count
+const count = await User.count({
+  where: { status: 'active' },
+});
+
+// Raw query
+const results = await User.query('SELECT * FROM users WHERE age > 18');
+```
+
+### Instance Methods
+
+Work with individual model instances:
+
+```typescript
+const user = new User();
+user.name = 'John Doe';
+user.email = 'john@example.com';
+
+// Save new record
+await user.save();
+
+// Update existing record
+user.name = 'Jane Doe';
+await user.save();
+
+// Delete
+await user.destroy();
+
+// Reload from database
+await user.reload();
+
+// Convert to JSON
+const json = user.toJSON();
+```
+
+## Timestamps
+
+Enable automatic timestamp management:
+
+```typescript
+@Table('posts', { timestamps: true })
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  // These are automatically managed
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+
+  @Column({ type: 'DateTime' })
+  updated_at!: Date;
+}
+```
+
+Or manually define timestamp behavior:
+
+```typescript
+class Post extends Model {
+  @Column({ type: 'DateTime', default: () => new Date() })
+  created_at!: Date;
+
+  @Column({ type: 'DateTime', onUpdate: () => new Date() })
+  updated_at!: Date;
+}
+```
+
+## Soft Deletes
+
+Enable soft deletes to mark records as deleted without removing them:
+
+```typescript
+@Table('users', { softDelete: true })
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'DateTime', nullable: true })
+  deleted_at?: Date;
+}
+
+// Soft delete (sets deleted_at)
+await User.delete({ where: { id: userId } });
+
+// Query excludes soft-deleted by default
+const users = await User.findAll();
+
+// Include soft-deleted records
+const allUsers = await User.findAll({ withDeleted: true });
+
+// Query only soft-deleted
+const deletedUsers = await User.findAll({ onlyDeleted: true });
+
+// Restore soft-deleted record
+await user.restore();
+
+// Permanently delete
+await User.forceDelete({ where: { id: userId } });
+```
+
+## Scopes
+
+Define reusable query scopes:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  status!: string;
+
+  @Column({ type: 'DateTime' })
+  published_at?: Date;
+
+  // Define scopes
+  static scopes = {
+    published: () => ({
+      where: { status: 'published' },
+    }),
+    recent: () => ({
+      orderBy: { created_at: 'DESC' },
+      limit: 10,
+    }),
+    byAuthor: (authorId: string) => ({
+      where: { author_id: authorId },
+    }),
+  };
+}
+
+// Use scopes
+const publishedPosts = await Post.scope('published').findAll();
+const recentPosts = await Post.scope('recent').findAll();
+const authorPosts = await Post.scope('byAuthor', userId).findAll();
+
+// Chain scopes
+const recentPublished = await Post
+  .scope('published')
+  .scope('recent')
+  .findAll();
+```
+
+## Virtual Attributes
+
+Add computed properties that aren't stored in the database:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'String' })
+  first_name!: string;
+
+  @Column({ type: 'String' })
+  last_name!: string;
+
+  get full_name(): string {
+    return `${this.first_name} ${this.last_name}`;
+  }
+
+  set full_name(value: string) {
+    const [first, last] = value.split(' ');
+    this.first_name = first;
+    this.last_name = last;
+  }
+}
+
+const user = await User.findByPk(userId);
+console.log(user.full_name); // "John Doe"
+```
+
+## Model Validation
+
+Add validation to ensure data integrity:
+
+```typescript
+import { Model, Column, Table, Validate } from '@clickorm/core';
+
+@Table('users')
+class User extends Model {
+  @Column({ type: 'String' })
+  @Validate({
+    minLength: 2,
+    maxLength: 50,
+    pattern: /^[a-zA-Z\s]+$/,
+  })
+  name!: string;
+
+  @Column({ type: 'String' })
+  @Validate({
+    email: true,
+  })
+  email!: string;
+
+  @Column({ type: 'Int32' })
+  @Validate({
+    min: 0,
+    max: 150,
+  })
+  age!: number;
+
+  @Column({ type: 'String' })
+  @Validate({
+    in: ['active', 'inactive', 'pending'],
+  })
+  status!: string;
+}
+```
+
+### Custom Validators
+
+Create custom validation functions:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'String' })
+  @Validate({
+    custom: (value: string) => {
+      if (!value.startsWith('@')) {
+        throw new Error('Username must start with @');
+      }
+    },
+  })
+  username!: string;
+}
+```
+
+## Best Practices
+
+### 1. Use TypeScript Strict Mode
+
+Enable strict type checking for better type safety:
+
+```typescript
+// tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "strictNullChecks": true
+  }
+}
+```
+
+### 2. Define Indexes
+
+Add indexes for frequently queried columns:
+
+```typescript
+@Table('users', {
+  indexes: [
+    { columns: ['email'], unique: true },
+    { columns: ['created_at'] },
+    { columns: ['status', 'created_at'] },
+  ],
+})
+class User extends Model {
+  // ...
+}
+```
+
+### 3. Use Enums for Fixed Values
+
+Define enums for columns with fixed values:
+
+```typescript
+enum UserStatus {
+  Active = 'active',
+  Inactive = 'inactive',
+  Suspended = 'suspended',
+}
+
+@Table('users')
+class User extends Model {
+  @Column({ type: 'Enum8(\'active\' = 1, \'inactive\' = 2, \'suspended\' = 3)' })
+  status!: UserStatus;
+}
+```
+
+### 4. Separate Concerns
+
+Keep models focused and use services for business logic:
+
+```typescript
+// models/user.ts
+@Table('users')
+class User extends Model {
+  // Just model definition
+}
+
+// services/user-service.ts
+class UserService {
+  async registerUser(data: RegisterData) {
+    // Business logic here
+    const user = await User.create(data);
+    await this.sendWelcomeEmail(user);
+    return user;
+  }
+}
+```
+
+## Next Steps
+
+- Learn about [Schemas](/docs/core-concepts/schemas) for schema management
+- Explore [Queries](/docs/core-concepts/queries) for advanced querying
+- Define [Relations](/docs/core-concepts/relations) between models
+- Add [Hooks](/docs/core-concepts/hooks) for lifecycle events

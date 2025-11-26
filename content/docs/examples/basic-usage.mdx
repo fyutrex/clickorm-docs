@@ -1,0 +1,517 @@
+---
+title: Basic Usage
+description: Simple examples to get you started with ClickORM
+---
+
+# Basic Usage Examples
+
+Learn the fundamentals of ClickORM with these practical examples.
+
+## Setting Up Your First Project
+
+### 1. Project Structure
+
+```
+my-clickorm-app/
+├── src/
+│   ├── config/
+│   │   └── database.ts
+│   ├── models/
+│   │   ├── user.ts
+│   │   └── post.ts
+│   └── index.ts
+├── package.json
+└── tsconfig.json
+```
+
+### 2. Database Configuration
+
+```typescript
+// src/config/database.ts
+import { ClickORM } from '@clickorm/core';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+export const orm = new ClickORM({
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT) || 8123,
+  database: process.env.DB_NAME || 'myapp',
+  username: process.env.DB_USER || 'default',
+  password: process.env.DB_PASSWORD || '',
+  debug: process.env.NODE_ENV === 'development',
+});
+```
+
+### 3. Define Models
+
+```typescript
+// src/models/user.ts
+import { Model, Column, Table } from '@clickorm/core';
+
+@Table('users')
+export class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'String', unique: true })
+  email!: string;
+
+  @Column({ type: 'Int32' })
+  age!: number;
+
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+}
+```
+
+```typescript
+// src/models/post.ts
+import { Model, Column, Table, BelongsTo } from '@clickorm/core';
+import { User } from './user';
+
+@Table('posts')
+export class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  @Column({ type: 'String' })
+  content!: string;
+
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+
+  @BelongsTo(() => User, 'user_id')
+  user!: User;
+}
+```
+
+## CRUD Operations
+
+### Creating Records
+
+```typescript
+import { User } from './models/user';
+
+// Create single user
+const user = await User.create({
+  id: crypto.randomUUID(),
+  name: 'John Doe',
+  email: 'john@example.com',
+  age: 30,
+  created_at: new Date(),
+});
+
+console.log('Created user:', user.id);
+```
+
+### Bulk Insert
+
+```typescript
+const users = await User.insertMany([
+  {
+    id: crypto.randomUUID(),
+    name: 'Alice',
+    email: 'alice@example.com',
+    age: 25,
+    created_at: new Date(),
+  },
+  {
+    id: crypto.randomUUID(),
+    name: 'Bob',
+    email: 'bob@example.com',
+    age: 35,
+    created_at: new Date(),
+  },
+]);
+
+console.log(`Inserted ${users.length} users`);
+```
+
+### Reading Records
+
+```typescript
+// Find all users
+const allUsers = await User.findAll();
+
+// Find with conditions
+const adults = await User.findAll({
+  where: { age: { $gte: 18 } },
+});
+
+// Find one user
+const user = await User.findOne({
+  where: { email: 'john@example.com' },
+});
+
+// Find by primary key
+const userById = await User.findByPk('user-id-123');
+
+// Find with limit and offset
+const users = await User.findAll({
+  limit: 10,
+  offset: 20,
+  orderBy: { created_at: 'DESC' },
+});
+```
+
+### Updating Records
+
+```typescript
+// Update single record
+await User.update(
+  { name: 'Jane Doe', age: 31 },
+  { where: { id: userId } }
+);
+
+// Update multiple records
+await User.update(
+  { status: 'active' },
+  { where: { age: { $gte: 18 } } }
+);
+
+// Update instance
+const user = await User.findByPk(userId);
+user.name = 'Updated Name';
+await user.save();
+```
+
+### Deleting Records
+
+```typescript
+// Delete with conditions
+await User.delete({
+  where: { email: 'old@example.com' },
+});
+
+// Delete by ID
+await User.delete({
+  where: { id: userId },
+});
+
+// Delete instance
+const user = await User.findByPk(userId);
+await user.destroy();
+```
+
+## Querying Data
+
+### Simple Queries
+
+```typescript
+// Select specific columns
+const users = await User.findAll({
+  select: ['id', 'name', 'email'],
+});
+
+// Count records
+const count = await User.count();
+
+// Count with conditions
+const activeCount = await User.count({
+  where: { status: 'active' },
+});
+```
+
+### Advanced Filtering
+
+```typescript
+// Multiple conditions (AND)
+const users = await User.findAll({
+  where: {
+    age: { $gte: 18 },
+    status: 'active',
+    created_at: { $gte: new Date('2024-01-01') },
+  },
+});
+
+// OR conditions
+const users = await User.findAll({
+  where: {
+    $or: [
+      { role: 'admin' },
+      { role: 'moderator' },
+    ],
+  },
+});
+
+// Complex conditions
+const users = await User.findAll({
+  where: {
+    status: 'active',
+    $or: [
+      { age: { $gte: 18 } },
+      { verified: true },
+    ],
+  },
+});
+```
+
+### Pattern Matching
+
+```typescript
+// LIKE queries
+const users = await User.findAll({
+  where: {
+    email: { $like: '%@gmail.com' },
+  },
+});
+
+// Multiple patterns
+const users = await User.findAll({
+  where: {
+    name: { $like: 'John%' },
+    email: { $notLike: '%spam%' },
+  },
+});
+```
+
+### Sorting and Pagination
+
+```typescript
+// Order by single column
+const users = await User.findAll({
+  orderBy: { created_at: 'DESC' },
+});
+
+// Order by multiple columns
+const users = await User.findAll({
+  orderBy: { 
+    status: 'ASC',
+    created_at: 'DESC',
+  },
+});
+
+// Pagination
+const page = 1;
+const perPage = 20;
+const users = await User.findAll({
+  limit: perPage,
+  offset: (page - 1) * perPage,
+  orderBy: { created_at: 'DESC' },
+});
+```
+
+## Working with Relations
+
+### Loading Relations
+
+```typescript
+// Eager load user with posts
+const posts = await Post.findAll({
+  include: ['user'],
+});
+
+posts.forEach(post => {
+  console.log(`${post.title} by ${post.user.name}`);
+});
+```
+
+### Nested Relations
+
+```typescript
+// Load posts with user and user's profile
+const posts = await Post.findAll({
+  include: [
+    {
+      relation: 'user',
+      include: ['profile'],
+    },
+  ],
+});
+```
+
+### Lazy Loading
+
+```typescript
+const post = await Post.findByPk(postId);
+
+// Load user when needed
+const user = await post.getUser();
+console.log('Author:', user.name);
+```
+
+## Aggregations
+
+### Basic Aggregations
+
+```typescript
+// Sum
+const totalAge = await User.query(
+  'SELECT SUM(age) as total FROM users'
+);
+
+// Average
+const avgAge = await User.query(
+  'SELECT AVG(age) as average FROM users'
+);
+
+// Min/Max
+const stats = await User.query(`
+  SELECT 
+    MIN(age) as min_age,
+    MAX(age) as max_age
+  FROM users
+`);
+```
+
+### Group By
+
+```typescript
+const usersByAge = await User.query(`
+  SELECT 
+    age,
+    COUNT(*) as count
+  FROM users
+  GROUP BY age
+  ORDER BY age
+`);
+
+console.log('Users by age:', usersByAge);
+```
+
+## Practical Examples
+
+### User Registration
+
+```typescript
+async function registerUser(userData: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  // Check if email exists
+  const existing = await User.findOne({
+    where: { email: userData.email },
+  });
+
+  if (existing) {
+    throw new Error('Email already registered');
+  }
+
+  // Create user
+  const user = await User.create({
+    id: crypto.randomUUID(),
+    name: userData.name,
+    email: userData.email,
+    password: await hashPassword(userData.password),
+    created_at: new Date(),
+  });
+
+  return user;
+}
+```
+
+### Blog Post Creation
+
+```typescript
+async function createPost(userId: string, postData: {
+  title: string;
+  content: string;
+}) {
+  const post = await Post.create({
+    id: crypto.randomUUID(),
+    title: postData.title,
+    content: postData.content,
+    user_id: userId,
+    status: 'draft',
+    created_at: new Date(),
+  });
+
+  return post;
+}
+```
+
+### Search Functionality
+
+```typescript
+async function searchUsers(query: string) {
+  return await User.findAll({
+    where: {
+      $or: [
+        { name: { $like: `%${query}%` } },
+        { email: { $like: `%${query}%` } },
+      ],
+    },
+    limit: 20,
+  });
+}
+```
+
+### Analytics Query
+
+```typescript
+async function getUserStats() {
+  const stats = await User.query(`
+    SELECT 
+      COUNT(*) as total_users,
+      COUNT(DISTINCT toDate(created_at)) as signup_days,
+      AVG(age) as average_age,
+      uniq(email) as unique_emails
+    FROM users
+    WHERE created_at >= now() - INTERVAL 30 DAY
+  `);
+
+  return stats[0];
+}
+```
+
+### Recent Activity
+
+```typescript
+async function getRecentPosts(limit: number = 10) {
+  return await Post.findAll({
+    include: ['user'],
+    orderBy: { created_at: 'DESC' },
+    limit,
+    where: { status: 'published' },
+  });
+}
+```
+
+## Error Handling
+
+```typescript
+import { ClickORMError, ValidationError } from '@clickorm/core';
+
+async function safeCreateUser(userData: any) {
+  try {
+    const user = await User.create(userData);
+    return { success: true, user };
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return { 
+        success: false, 
+        error: 'Validation failed',
+        details: error.errors 
+      };
+    }
+    
+    if (error instanceof ClickORMError) {
+      return { 
+        success: false, 
+        error: 'Database error',
+        message: error.message 
+      };
+    }
+    
+    throw error; // Re-throw unexpected errors
+  }
+}
+```
+
+## Next Steps
+
+- Explore [Advanced Queries](/docs/examples/advanced-queries) for complex query patterns
+- Learn about [Relations](/docs/core-concepts/relations) in depth
+- Check out [Real-world Apps](/docs/examples/real-world) for complete applications
+- Review [Best Practices](/docs/guides/best-practices) for production code

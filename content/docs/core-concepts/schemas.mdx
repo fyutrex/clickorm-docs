@@ -1,0 +1,629 @@
+---
+title: Schemas
+description: Manage database schemas with ClickORM
+---
+
+# Schemas
+
+ClickORM provides powerful schema management capabilities to help you create, modify, and maintain your database structure.
+
+## Schema Definition
+
+Define your schema using the `@Table` and `@Column` decorators:
+
+```typescript
+import { Model, Column, Table } from '@clickorm/core';
+
+@Table('users', {
+  engine: 'MergeTree',
+  orderBy: ['id'],
+  partitionBy: 'toYYYYMM(created_at)',
+})
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'String', unique: true })
+  email!: string;
+
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+}
+```
+
+## Creating Tables
+
+### Sync Single Model
+
+Create a table from a model:
+
+```typescript
+import { orm } from './db';
+import { User } from './models/user';
+
+await orm.sync(User);
+```
+
+### Sync All Models
+
+Sync all registered models:
+
+```typescript
+await orm.syncAll();
+```
+
+### Force Recreation
+
+Drop and recreate tables:
+
+```typescript
+await orm.sync(User, { force: true });
+```
+
+### Alter Mode
+
+Update existing tables (careful!):
+
+```typescript
+await orm.sync(User, { alter: true });
+```
+
+## Table Engines
+
+ClickHouse supports various table engines for different use cases:
+
+### MergeTree
+
+Default engine for most use cases:
+
+```typescript
+@Table('events', {
+  engine: 'MergeTree',
+  orderBy: ['timestamp', 'user_id'],
+  partitionBy: 'toYYYYMM(timestamp)',
+})
+class Event extends Model {
+  // columns...
+}
+```
+
+### ReplacingMergeTree
+
+Automatically deduplicates rows:
+
+```typescript
+@Table('users', {
+  engine: 'ReplacingMergeTree',
+  orderBy: ['id'],
+  versionColumn: 'updated_at',
+})
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'DateTime' })
+  updated_at!: Date;
+}
+```
+
+### SummingMergeTree
+
+Automatically sums numeric columns:
+
+```typescript
+@Table('user_stats', {
+  engine: 'SummingMergeTree',
+  orderBy: ['user_id', 'date'],
+})
+class UserStats extends Model {
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  @Column({ type: 'Date' })
+  date!: Date;
+
+  @Column({ type: 'UInt64' })
+  views!: number;
+
+  @Column({ type: 'UInt64' })
+  clicks!: number;
+}
+```
+
+### AggregatingMergeTree
+
+Stores aggregated data:
+
+```typescript
+@Table('metrics', {
+  engine: 'AggregatingMergeTree',
+  orderBy: ['date', 'metric_name'],
+})
+class Metrics extends Model {
+  @Column({ type: 'Date' })
+  date!: Date;
+
+  @Column({ type: 'String' })
+  metric_name!: string;
+
+  @Column({ type: 'AggregateFunction(sum, UInt64)' })
+  total!: any;
+}
+```
+
+### Distributed
+
+Create distributed tables across clusters:
+
+```typescript
+@Table('events_distributed', {
+  engine: 'Distributed',
+  cluster: 'my_cluster',
+  database: 'default',
+  table: 'events',
+  shardingKey: 'rand()',
+})
+class EventDistributed extends Model {
+  // columns...
+}
+```
+
+## Column Types
+
+### Numeric Types
+
+```typescript
+class Product extends Model {
+  @Column({ type: 'Int8' })
+  tiny_number!: number;
+
+  @Column({ type: 'Int16' })
+  small_number!: number;
+
+  @Column({ type: 'Int32' })
+  regular_number!: number;
+
+  @Column({ type: 'Int64' })
+  big_number!: bigint;
+
+  @Column({ type: 'UInt8' })
+  unsigned_tiny!: number;
+
+  @Column({ type: 'Float32' })
+  float_value!: number;
+
+  @Column({ type: 'Float64' })
+  double_value!: number;
+
+  @Column({ type: 'Decimal(18, 2)' })
+  price!: number;
+}
+```
+
+### String Types
+
+```typescript
+class Content extends Model {
+  @Column({ type: 'String' })
+  dynamic_text!: string;
+
+  @Column({ type: 'FixedString(36)' })
+  uuid_string!: string;
+
+  @Column({ type: 'LowCardinality(String)' })
+  category!: string;
+}
+```
+
+### Date and Time
+
+```typescript
+class TimeData extends Model {
+  @Column({ type: 'Date' })
+  date_only!: Date;
+
+  @Column({ type: 'DateTime' })
+  timestamp!: Date;
+
+  @Column({ type: 'DateTime(\'UTC\')' })
+  utc_timestamp!: Date;
+
+  @Column({ type: 'DateTime64(3)' })
+  precise_timestamp!: Date;
+}
+```
+
+### Arrays
+
+```typescript
+class ArrayData extends Model {
+  @Column({ type: 'Array(String)' })
+  tags!: string[];
+
+  @Column({ type: 'Array(Int32)' })
+  numbers!: number[];
+
+  @Column({ type: 'Array(Array(Float64))' })
+  matrix!: number[][];
+}
+```
+
+### Nullable Types
+
+```typescript
+class NullableData extends Model {
+  @Column({ type: 'Nullable(String)' })
+  optional_text?: string;
+
+  @Column({ type: 'Nullable(Int32)' })
+  optional_number?: number;
+}
+```
+
+### Special Types
+
+```typescript
+class SpecialTypes extends Model {
+  @Column({ type: 'UUID' })
+  id!: string;
+
+  @Column({ type: 'IPv4' })
+  ip_address!: string;
+
+  @Column({ type: 'IPv6' })
+  ipv6_address!: string;
+
+  @Column({ type: 'Enum8(\'active\' = 1, \'inactive\' = 2)' })
+  status!: string;
+
+  @Column({ type: 'JSON' })
+  metadata!: Record<string, any>;
+}
+```
+
+## Indexes
+
+### Primary Key
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+}
+```
+
+### Composite Primary Key
+
+```typescript
+@Table('user_events', {
+  primaryKey: ['user_id', 'event_id'],
+})
+class UserEvent extends Model {
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  @Column({ type: 'UUID' })
+  event_id!: string;
+}
+```
+
+### data_skipping_indices
+
+Add data skipping indexes for better query performance:
+
+```typescript
+@Table('logs', {
+  engine: 'MergeTree',
+  orderBy: ['timestamp'],
+  indexes: [
+    {
+      name: 'user_idx',
+      columns: ['user_id'],
+      type: 'set',
+      granularity: 4,
+    },
+    {
+      name: 'message_idx',
+      columns: ['message'],
+      type: 'tokenbf_v1(32768, 3, 0)',
+      granularity: 2,
+    },
+  ],
+})
+class Log extends Model {
+  // columns...
+}
+```
+
+## Partitioning
+
+Partition tables for better performance:
+
+```typescript
+@Table('events', {
+  engine: 'MergeTree',
+  orderBy: ['timestamp'],
+  partitionBy: 'toYYYYMM(timestamp)',
+})
+class Event extends Model {
+  @Column({ type: 'DateTime' })
+  timestamp!: Date;
+}
+```
+
+### Custom Partitioning
+
+```typescript
+@Table('sales', {
+  partitionBy: 'toYear(sale_date)',
+})
+class Sale extends Model {
+  @Column({ type: 'Date' })
+  sale_date!: Date;
+}
+
+// Or multi-level partitioning
+@Table('analytics', {
+  partitionBy: '(toYYYYMM(date), country)',
+})
+class Analytics extends Model {
+  @Column({ type: 'Date' })
+  date!: Date;
+
+  @Column({ type: 'String' })
+  country!: string;
+}
+```
+
+## Table Settings
+
+Configure ClickHouse-specific settings:
+
+```typescript
+@Table('large_table', {
+  engine: 'MergeTree',
+  orderBy: ['id'],
+  settings: {
+    index_granularity: 8192,
+    index_granularity_bytes: 10485760,
+    enable_mixed_granularity_parts: 1,
+    min_bytes_for_wide_part: 10485760,
+    min_rows_for_wide_part: 10000,
+  },
+})
+class LargeTable extends Model {
+  // columns...
+}
+```
+
+## Compression
+
+Add compression to columns:
+
+```typescript
+class CompressedData extends Model {
+  @Column({ 
+    type: 'String',
+    codec: 'ZSTD(1)',
+  })
+  text!: string;
+
+  @Column({
+    type: 'Float64',
+    codec: 'Gorilla',
+  })
+  metric!: number;
+
+  @Column({
+    type: 'DateTime',
+    codec: 'Delta, LZ4',
+  })
+  timestamp!: Date;
+}
+```
+
+## Materialized Views
+
+Create materialized views for pre-aggregated data:
+
+```typescript
+// Create base table
+await orm.sync(Event);
+
+// Create materialized view
+await orm.query(`
+  CREATE MATERIALIZED VIEW daily_events_mv
+  ENGINE = SummingMergeTree()
+  PARTITION BY toYYYYMM(date)
+  ORDER BY (date, event_type)
+  AS SELECT
+    toDate(timestamp) as date,
+    event_type,
+    count() as event_count,
+    uniq(user_id) as unique_users
+  FROM events
+  GROUP BY date, event_type
+`);
+```
+
+## Schema Migrations
+
+### Manual Migrations
+
+```typescript
+// Add column
+await orm.query(`
+  ALTER TABLE users 
+  ADD COLUMN phone String
+`);
+
+// Modify column
+await orm.query(`
+  ALTER TABLE users 
+  MODIFY COLUMN email String CODEC(ZSTD(1))
+`);
+
+// Drop column
+await orm.query(`
+  ALTER TABLE users 
+  DROP COLUMN phone
+`);
+
+// Add index
+await orm.query(`
+  ALTER TABLE users 
+  ADD INDEX email_idx email TYPE set GRANULARITY 4
+`);
+```
+
+### Migration Files
+
+Create structured migrations:
+
+```typescript
+// migrations/001_create_users.ts
+export async function up(orm: ClickORM) {
+  await orm.query(`
+    CREATE TABLE users (
+      id UUID,
+      name String,
+      email String,
+      created_at DateTime
+    ) ENGINE = MergeTree()
+    ORDER BY id
+  `);
+}
+
+export async function down(orm: ClickORM) {
+  await orm.query('DROP TABLE users');
+}
+```
+
+### Run Migrations
+
+```typescript
+import { MigrationRunner } from '@clickorm/core';
+
+const runner = new MigrationRunner(orm);
+
+// Run all pending migrations
+await runner.up();
+
+// Rollback last migration
+await runner.down();
+
+// Get migration status
+const status = await runner.status();
+```
+
+## Schema Validation
+
+Validate schema against database:
+
+```typescript
+const validation = await orm.validateSchema(User);
+
+if (!validation.valid) {
+  console.log('Schema differences:', validation.differences);
+}
+```
+
+## Schema Export
+
+Export schema as SQL:
+
+```typescript
+const sql = User.toSQL();
+console.log(sql);
+// CREATE TABLE users (
+//   id UUID,
+//   name String,
+//   ...
+// ) ENGINE = MergeTree() ...
+```
+
+## Best Practices
+
+### 1. Choose the Right Engine
+
+```typescript
+// Analytical data - MergeTree
+@Table('events', { engine: 'MergeTree' })
+class Event extends Model {}
+
+// Aggregated metrics - SummingMergeTree
+@Table('metrics', { engine: 'SummingMergeTree' })
+class Metrics extends Model {}
+
+// Deduplication needed - ReplacingMergeTree
+@Table('users', { engine: 'ReplacingMergeTree' })
+class User extends Model {}
+```
+
+### 2. Optimize ORDER BY
+
+```typescript
+// Good: Order by commonly queried columns
+@Table('logs', {
+  orderBy: ['timestamp', 'user_id', 'event_type'],
+})
+class Log extends Model {}
+
+// Bad: Random ordering
+@Table('logs', {
+  orderBy: ['random_field'],
+})
+class Log extends Model {}
+```
+
+### 3. Use Partitioning Wisely
+
+```typescript
+// Good: Monthly partitions for time-series data
+@Table('events', {
+  partitionBy: 'toYYYYMM(timestamp)',
+})
+class Event extends Model {}
+
+// Avoid: Too many partitions
+@Table('events', {
+  partitionBy: 'toDate(timestamp)', // Daily partitions might be too many
+})
+class Event extends Model {}
+```
+
+### 4. Apply Compression
+
+```typescript
+// Compress text columns
+@Column({ type: 'String', codec: 'ZSTD(1)' })
+text!: string;
+
+// Use Delta compression for sequential data
+@Column({ type: 'Int64', codec: 'Delta, LZ4' })
+counter!: number;
+```
+
+### 5. Regular Maintenance
+
+```typescript
+// Optimize tables periodically
+await orm.query('OPTIMIZE TABLE users FINAL');
+
+// Check table size
+await orm.query('SELECT formatReadableSize(sum(bytes)) FROM system.parts WHERE table = \'users\'');
+
+// Drop old partitions
+await orm.query('ALTER TABLE events DROP PARTITION \'202301\'');
+```
+
+## Next Steps
+
+- Learn about [Models](/docs/core-concepts/models) for schema implementation
+- Explore [Migrations](/docs/guides/migrations) for schema evolution
+- Read about [Performance](/docs/guides/performance) optimization
+- Check the [API Reference](/docs/api/schema-builder) for advanced options

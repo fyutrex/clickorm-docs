@@ -1,0 +1,676 @@
+---
+title: Hooks
+description: Lifecycle hooks for models and queries
+---
+
+# Hooks
+
+Hooks allow you to execute custom logic at specific points in your model's lifecycle, providing powerful ways to add validation, transformations, and side effects.
+
+## Model Lifecycle Hooks
+
+ClickORM provides hooks for various stages of a model's lifecycle:
+
+### Before/After Create
+
+Execute logic when creating new records:
+
+```typescript
+import { Model, Column, Table, BeforeCreate, AfterCreate } from '@clickorm/core';
+
+@Table('users')
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  email!: string;
+
+  @Column({ type: 'String' })
+  password!: string;
+
+  @BeforeCreate()
+  async beforeCreate() {
+    // Generate UUID if not provided
+    if (!this.id) {
+      this.id = crypto.randomUUID();
+    }
+    
+    // Hash password
+    this.password = await hashPassword(this.password);
+  }
+
+  @AfterCreate()
+  async afterCreate() {
+    // Send welcome email
+    await sendWelcomeEmail(this.email);
+    
+    // Log creation
+    console.log(`User ${this.id} created`);
+  }
+}
+```
+
+### Before/After Update
+
+Execute logic when updating records:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  content!: string;
+
+  @Column({ type: 'DateTime' })
+  updated_at!: Date;
+
+  @BeforeUpdate()
+  beforeUpdate() {
+    // Update timestamp
+    this.updated_at = new Date();
+    
+    // Sanitize content
+    this.content = sanitizeHTML(this.content);
+  }
+
+  @AfterUpdate()
+  async afterUpdate() {
+    // Clear cache
+    await cache.del(`post:${this.id}`);
+    
+    // Notify subscribers
+    await notifySubscribers(this.id);
+  }
+}
+```
+
+### Before/After Delete
+
+Execute logic when deleting records:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @BeforeDelete()
+  async beforeDelete() {
+    // Delete related records
+    await Post.delete({ where: { user_id: this.id } });
+    await Comment.delete({ where: { user_id: this.id } });
+  }
+
+  @AfterDelete()
+  async afterDelete() {
+    // Log deletion
+    await AuditLog.create({
+      action: 'user_deleted',
+      user_id: this.id,
+      timestamp: new Date(),
+    });
+  }
+}
+```
+
+### Before/After Save
+
+Execute logic for both create and update:
+
+```typescript
+@Table('products')
+class Product extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  slug!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @BeforeSave()
+  beforeSave() {
+    // Generate slug from name
+    if (!this.slug) {
+      this.slug = slugify(this.name);
+    }
+  }
+
+  @AfterSave()
+  async afterSave() {
+    // Update search index
+    await searchIndex.index(this);
+  }
+}
+```
+
+### Before/After Find
+
+Execute logic when retrieving records:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  password!: string;
+
+  @AfterFind()
+  afterFind() {
+    // Remove sensitive data
+    delete this.password;
+  }
+}
+```
+
+## Validation Hooks
+
+Use hooks for custom validation:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'String' })
+  email!: string;
+
+  @Column({ type: 'String' })
+  username!: string;
+
+  @BeforeCreate()
+  @BeforeUpdate()
+  async validate() {
+    // Email validation
+    if (!this.email.includes('@')) {
+      throw new Error('Invalid email address');
+    }
+
+    // Username uniqueness
+    const existing = await User.findOne({
+      where: { username: this.username },
+    });
+    
+    if (existing && existing.id !== this.id) {
+      throw new Error('Username already taken');
+    }
+  }
+}
+```
+
+## Hook Order
+
+Hooks execute in a specific order:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @BeforeValidate()
+  beforeValidate() {
+    console.log('1. Before validation');
+  }
+
+  @AfterValidate()
+  afterValidate() {
+    console.log('2. After validation');
+  }
+
+  @BeforeSave()
+  beforeSave() {
+    console.log('3. Before save');
+  }
+
+  @BeforeCreate()
+  beforeCreate() {
+    console.log('4. Before create');
+  }
+
+  @AfterCreate()
+  afterCreate() {
+    console.log('5. After create');
+  }
+
+  @AfterSave()
+  afterSave() {
+    console.log('6. After save');
+  }
+}
+```
+
+## Static Hooks
+
+Define hooks at the class level:
+
+```typescript
+@Table('users')
+class User extends Model {
+  static hooks = {
+    beforeCreate: async (instance: User) => {
+      instance.id = crypto.randomUUID();
+    },
+    
+    afterCreate: async (instance: User) => {
+      await sendWelcomeEmail(instance.email);
+    },
+    
+    beforeBulkCreate: async (instances: User[]) => {
+      console.log(`Creating ${instances.length} users`);
+    },
+    
+    afterBulkCreate: async (instances: User[]) => {
+      console.log('Bulk creation complete');
+    },
+  };
+}
+```
+
+## Bulk Operation Hooks
+
+Handle bulk operations:
+
+```typescript
+@Table('logs')
+class Log extends Model {
+  static hooks = {
+    beforeBulkCreate: async (instances: Log[]) => {
+      // Validate all instances
+      instances.forEach(log => {
+        if (!log.message) {
+          throw new Error('Log message required');
+        }
+      });
+    },
+    
+    beforeBulkUpdate: async (options: any) => {
+      console.log('Updating records:', options.where);
+    },
+    
+    beforeBulkDelete: async (options: any) => {
+      // Archive before deleting
+      const records = await Log.findAll(options);
+      await Archive.insertMany(records);
+    },
+  };
+}
+```
+
+## Conditional Hooks
+
+Execute hooks conditionally:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'String' })
+  status!: string;
+
+  @BeforeUpdate()
+  beforeUpdate() {
+    // Only execute if status changed
+    if (this.changed('status')) {
+      this.status_changed_at = new Date();
+    }
+  }
+
+  @AfterUpdate()
+  async afterUpdate() {
+    // Send notification only if published
+    if (this.status === 'published' && this.changed('status')) {
+      await notifySubscribers(this.id);
+    }
+  }
+}
+```
+
+## Async Hooks
+
+All hooks support async operations:
+
+```typescript
+@Table('images')
+class Image extends Model {
+  @Column({ type: 'String' })
+  url!: string;
+
+  @AfterCreate()
+  async processImage() {
+    // Generate thumbnails
+    await generateThumbnail(this.url, 'small');
+    await generateThumbnail(this.url, 'medium');
+    await generateThumbnail(this.url, 'large');
+    
+    // Extract metadata
+    const metadata = await extractImageMetadata(this.url);
+    await this.update({ metadata });
+  }
+
+  @AfterDelete()
+  async cleanupFiles() {
+    // Delete from storage
+    await storage.delete(this.url);
+    await storage.delete(`${this.url}/small.jpg`);
+    await storage.delete(`${this.url}/medium.jpg`);
+    await storage.delete(`${this.url}/large.jpg`);
+  }
+}
+```
+
+## Error Handling
+
+Handle errors in hooks:
+
+```typescript
+@Table('payments')
+class Payment extends Model {
+  @AfterCreate()
+  async processPayment() {
+    try {
+      await paymentGateway.charge(this);
+      this.status = 'completed';
+    } catch (error) {
+      this.status = 'failed';
+      this.error_message = error.message;
+      
+      // Log error
+      await ErrorLog.create({
+        type: 'payment_failed',
+        payment_id: this.id,
+        error: error.message,
+      });
+    }
+    
+    await this.save();
+  }
+}
+```
+
+## Hook Context
+
+Access additional context in hooks:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @BeforeCreate()
+  async beforeCreate(options: any) {
+    // Access transaction
+    if (options.transaction) {
+      console.log('Running in transaction');
+    }
+    
+    // Access custom context
+    if (options.context?.currentUser) {
+      this.created_by = options.context.currentUser.id;
+    }
+  }
+}
+
+// Usage
+await User.create(
+  { name: 'John' },
+  { context: { currentUser } }
+);
+```
+
+## Disabling Hooks
+
+Skip hooks when needed:
+
+```typescript
+// Disable all hooks
+await User.create(data, { hooks: false });
+
+// Disable specific hooks
+await User.update(
+  { status: 'active' },
+  { 
+    where: { id: userId },
+    hooks: { beforeUpdate: false }
+  }
+);
+```
+
+## Global Hooks
+
+Define global hooks for all models:
+
+```typescript
+import { ClickORM } from '@clickorm/core';
+
+const orm = new ClickORM({
+  host: 'localhost',
+  port: 8123,
+  hooks: {
+    beforeCreate: async (model: any) => {
+      console.log(`Creating ${model.constructor.name}`);
+    },
+    
+    afterCreate: async (model: any) => {
+      await AuditLog.create({
+        action: 'create',
+        model: model.constructor.name,
+        record_id: model.id,
+      });
+    },
+  },
+});
+```
+
+## Use Cases
+
+### Audit Logging
+
+Track all changes to records:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @AfterCreate()
+  @AfterUpdate()
+  @AfterDelete()
+  async logChange(action: string) {
+    await AuditLog.create({
+      table: 'users',
+      record_id: this.id,
+      action,
+      changes: this.getChanges(),
+      user_id: this.getCurrentUser()?.id,
+      timestamp: new Date(),
+    });
+  }
+}
+```
+
+### Soft Deletes
+
+Implement soft delete functionality:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'DateTime', nullable: true })
+  deleted_at?: Date;
+
+  @BeforeDelete()
+  beforeDelete() {
+    // Soft delete instead of hard delete
+    this.deleted_at = new Date();
+    this.save();
+    
+    // Prevent actual deletion
+    return false;
+  }
+}
+```
+
+### Cache Invalidation
+
+Automatically invalidate cache:
+
+```typescript
+@Table('products')
+class Product extends Model {
+  @AfterCreate()
+  @AfterUpdate()
+  @AfterDelete()
+  async invalidateCache() {
+    await cache.del(`product:${this.id}`);
+    await cache.del('product:list');
+    await cache.del(`category:${this.category_id}:products`);
+  }
+}
+```
+
+### Data Transformation
+
+Transform data before saving:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'String' })
+  email!: string;
+
+  @Column({ type: 'String' })
+  phone!: string;
+
+  @BeforeSave()
+  normalize() {
+    // Normalize email
+    this.email = this.email.toLowerCase().trim();
+    
+    // Format phone number
+    this.phone = this.phone.replace(/[^\d]/g, '');
+  }
+}
+```
+
+### Search Indexing
+
+Update search indexes:
+
+```typescript
+@Table('articles')
+class Article extends Model {
+  @AfterCreate()
+  @AfterUpdate()
+  async updateSearchIndex() {
+    await searchEngine.index({
+      id: this.id,
+      title: this.title,
+      content: this.content,
+      tags: this.tags,
+    });
+  }
+
+  @AfterDelete()
+  async removeFromSearchIndex() {
+    await searchEngine.remove(this.id);
+  }
+}
+```
+
+### Event Publishing
+
+Publish events for other services:
+
+```typescript
+@Table('orders')
+class Order extends Model {
+  @AfterCreate()
+  async publishOrderCreated() {
+    await eventBus.publish('order.created', {
+      order_id: this.id,
+      user_id: this.user_id,
+      total: this.total,
+    });
+  }
+
+  @AfterUpdate()
+  async publishOrderUpdated() {
+    if (this.changed('status')) {
+      await eventBus.publish('order.status_changed', {
+        order_id: this.id,
+        old_status: this.previous('status'),
+        new_status: this.status,
+      });
+    }
+  }
+}
+```
+
+## Best Practices
+
+### 1. Keep Hooks Focused
+
+```typescript
+// Good: Single responsibility
+@BeforeCreate()
+generateId() {
+  this.id = crypto.randomUUID();
+}
+
+@BeforeCreate()
+hashPassword() {
+  this.password = hash(this.password);
+}
+
+// Avoid: Too much in one hook
+@BeforeCreate()
+async doEverything() {
+  this.id = crypto.randomUUID();
+  this.password = hash(this.password);
+  await sendEmail();
+  await updateCache();
+  // ... too much
+}
+```
+
+### 2. Handle Errors Properly
+
+```typescript
+@AfterCreate()
+async sendNotification() {
+  try {
+    await emailService.send(this.email);
+  } catch (error) {
+    // Don't let notification failure break creation
+    console.error('Failed to send email:', error);
+  }
+}
+```
+
+### 3. Avoid Circular Dependencies
+
+```typescript
+// Avoid: Can cause infinite loops
+@AfterUpdate()
+async updateRelated() {
+  await this.relatedModel.update({ ... }); // This might trigger more hooks
+}
+```
+
+### 4. Use Transactions
+
+```typescript
+@AfterCreate()
+async createRelated(options: any) {
+  const transaction = options.transaction;
+  
+  await RelatedModel.create(
+    { parent_id: this.id },
+    { transaction }
+  );
+}
+```
+
+## Next Steps
+
+- Review [Models](/docs/core-concepts/models) for model definition
+- Learn about [Validation](/docs/guides/validation) for data integrity
+- Explore [Testing](/docs/guides/testing) hooks in your tests
+- Check [Examples](/docs/examples) for real-world hook patterns

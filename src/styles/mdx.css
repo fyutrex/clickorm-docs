@@ -1,0 +1,41 @@
+/* MDX content styles */
+
+.mdx-content {
+  @apply text-foreground;
+}
+
+.mdx-content > * + * {
+  @apply mt-6;
+}
+
+.mdx-content h1 {
+  @apply text-4xl font-bold tracking-tight;
+}
+
+.mdx-content h2 {
+  @apply text-3xl font-semibold tracking-tight mt-12;
+}
+
+.mdx-content h3 {
+  @apply text-2xl font-semibold tracking-tight mt-8;
+}
+
+.mdx-content h4 {
+  @apply text-xl font-semibold tracking-tight;
+}
+
+.mdx-content p {
+  @apply leading-7;
+}
+
+.mdx-content a {
+  @apply font-medium underline underline-offset-4;
+}
+
+.mdx-content code {
+  @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm;
+}
+
+.mdx-content pre {
+  @apply overflow-x-auto rounded-lg border bg-muted p-4;
+}

@@ -1,0 +1,11 @@
+# Font Files Directory
+
+Place PP Neue Montreal font files here:
+- PPNeueMontreal-Regular.woff2
+- PPNeueMontreal-Medium.woff2
+- PPNeueMontreal-Bold.woff2
+
+Note: PP Neue Montreal is a commercial font. You need to purchase and download it from:
+https://pangrampangram.com/products/neue-montreal
+
+Alternative: Use a fallback system font by removing the ppNeueMontreal font configuration from layout.tsx

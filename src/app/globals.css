@@ -1,0 +1,396 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Base colors */
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    
+    /* Card */
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    
+    /* Primary - ClickORM Brand Color (#FFE6F7) */
+    --primary: 330 100% 95%;
+    --primary-foreground: 330 81% 25%;
+    
+    /* Secondary */
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    
+    /* Muted */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    /* Accent */
+    --accent: 330 100% 95%;
+    --accent-foreground: 330 81% 25%;
+    
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Borders & Inputs */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 330 81% 60%;
+    
+    /* Radius */
+    --radius: 0.75rem;
+    
+    /* Font families */
+    --font-pp-neue-montreal: 'PP Neue Montreal', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-jetbrains-mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+
+  .dark {
+    /* Base colors */
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    
+    /* Card - with glassmorphism */
+    --card: 222.2 47% 11%;
+    --card-foreground: 210 40% 98%;
+    
+    /* Popover */
+    --popover: 222.2 47% 11%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary - Neon Pink for dark mode */
+    --primary: 330 100% 70%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary */
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    
+    /* Muted */
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    
+    /* Accent - Neon effect */
+    --accent: 330 100% 70%;
+    --accent-foreground: 0 0% 100%;
+    
+    /* Destructive */
+    --destructive: 0 62.8% 50%;
+    --destructive-foreground: 210 40% 98%;
+    
+    /* Borders & Inputs */
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 330 100% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
+    width: 100%;
+  }
+  
+  /* Custom selection colors */
+  ::selection {
+    @apply bg-primary/30 text-foreground;
+  }
+  
+  /* Focus visible styles */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+}
+
+@layer components {
+  /* Glassmorphism utility classes */
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-lg;
+  }
+  
+  .dark .glass {
+    @apply bg-white/5 backdrop-blur-lg border-white/10;
+  }
+  
+  .dark .glass-card {
+    @apply bg-white/[3%] backdrop-blur-2xl border-white/5;
+  }
+  
+  /* Neon glow effects */
+  .neon-pink {
+    @apply text-brand-neon-pink;
+    text-shadow: 0 0 10px rgba(255, 30, 183, 0.8),
+                 0 0 20px rgba(255, 30, 183, 0.6),
+                 0 0 30px rgba(255, 30, 183, 0.4);
+  }
+  
+  .neon-cyan {
+    @apply text-brand-neon-cyan;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.8),
+                 0 0 20px rgba(0, 240, 255, 0.6),
+                 0 0 30px rgba(0, 240, 255, 0.4);
+  }
+  
+  .neon-purple {
+    @apply text-brand-neon-purple;
+    text-shadow: 0 0 10px rgba(181, 55, 242, 0.8),
+                 0 0 20px rgba(181, 55, 242, 0.6),
+                 0 0 30px rgba(181, 55, 242, 0.4);
+  }
+  
+  /* Neon border effects */
+  .neon-border-pink {
+    @apply border-2 border-brand-neon-pink shadow-neon-pink;
+  }
+  
+  .neon-border-cyan {
+    @apply border-2 border-brand-neon-cyan shadow-neon-cyan;
+  }
+  
+  .neon-border-purple {
+    @apply border-2 border-brand-neon-purple shadow-neon-purple;
+  }
+  
+  /* Glow button effect */
+  .btn-glow {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+  
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(45deg,
+      rgba(255, 30, 183, 0.2),
+      rgba(0, 240, 255, 0.2),
+      rgba(181, 55, 242, 0.2)
+    );
+  }
+  
+  .btn-glow:hover::before {
+    @apply opacity-100;
+  }
+  
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg,
+      #FF1EB7 0%,
+      #00F0FF 50%,
+      #B537F2 100%
+    );
+  }
+  
+  /* Container with glow */
+  .container-glow {
+    @apply relative;
+  }
+  
+  .container-glow::after {
+    content: '';
+    @apply absolute inset-0 -z-10 blur-3xl opacity-30;
+    background: radial-gradient(circle at 50% 50%,
+      rgba(255, 30, 183, 0.3),
+      rgba(0, 240, 255, 0.2),
+      transparent 70%
+    );
+  }
+}
+
+@layer utilities {
+  /* Mobile-first responsive utilities */
+  .mobile-container {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  .mobile-text {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+  
+  /* Backdrop blur utilities */
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+  
+  /* Animation delays */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+  
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+  
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+/* Documentation Specific Styles */
+@layer base {
+  /* Prose customization for documentation */
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose h1 {
+    @apply text-4xl font-bold tracking-tight scroll-mt-20;
+  }
+
+  .prose h2 {
+    @apply text-3xl font-semibold tracking-tight scroll-mt-20 border-b pb-2 mt-10 mb-4;
+  }
+
+  .prose h3 {
+    @apply text-2xl font-semibold tracking-tight scroll-mt-20 mt-8 mb-4;
+  }
+
+  .prose h4 {
+    @apply text-xl font-semibold tracking-tight scroll-mt-20 mt-6 mb-3;
+  }
+
+  .prose p {
+    @apply leading-7 mb-4;
+  }
+
+  .prose a {
+    @apply text-primary hover:text-primary/80 underline underline-offset-4 transition-colors;
+  }
+
+  .prose code {
+    @apply relative rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold;
+  }
+
+  .prose pre {
+    @apply overflow-x-auto rounded-lg border bg-muted p-4 my-6;
+  }
+
+  .prose pre code {
+    @apply bg-transparent p-0 text-sm;
+  }
+
+  .prose ul {
+    @apply my-6 ml-6 list-disc;
+  }
+
+  .prose ol {
+    @apply my-6 ml-6 list-decimal;
+  }
+
+  .prose li {
+    @apply mt-2;
+  }
+
+  .prose blockquote {
+    @apply border-l-4 border-primary pl-4 italic my-6;
+  }
+
+  .prose table {
+    @apply w-full my-6 overflow-hidden rounded-lg border;
+  }
+
+  .prose th {
+    @apply border-b bg-muted px-4 py-2 text-left font-semibold;
+  }
+
+  .prose td {
+    @apply border-b px-4 py-2;
+  }
+
+  .prose img {
+    @apply rounded-lg my-6;
+  }
+
+  .prose hr {
+    @apply my-8 border-border;
+  }
+}
+
+/* Sidebar Active Link Enhancement */
+@layer components {
+  .sidebar-link-active {
+    @apply bg-accent text-accent-foreground font-medium;
+    position: relative;
+  }
+
+  .sidebar-link-active::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r;
+  }
+
+  /* Search Dialog Styles */
+  .search-result-highlight {
+    @apply bg-primary/10 text-primary font-medium;
+  }
+
+  /* Table of Contents Active Link */
+  .toc-link-active {
+    @apply text-primary font-medium;
+    position: relative;
+  }
+
+  .toc-link-active::before {
+    content: '';
+    @apply absolute -left-4 top-0 bottom-0 w-0.5 bg-primary;
+  }
+}
+
+/* Mobile Responsive Improvements */
+@media (max-width: 768px) {
+  .prose {
+    @apply text-sm;
+  }
+
+  .prose h1 {
+    @apply text-3xl;
+  }
+
+  .prose h2 {
+    @apply text-2xl;
+  }
+
+  .prose h3 {
+    @apply text-xl;
+  }
+
+  .prose h4 {
+    @apply text-lg;
+  }
+}
+
+/* Dark mode specific adjustments */
+.dark .prose code {
+  @apply bg-muted/50;
+}
+
+.dark .prose pre {
+  @apply bg-muted/50 border-border/50;
+}
+
+.dark .prose th {
+  @apply bg-muted/50;
+}

@@ -1,0 +1,602 @@
+---
+title: Queries
+description: Build powerful queries with ClickORM
+---
+
+# Queries
+
+ClickORM provides a fluent query builder API that makes it easy to construct complex queries while maintaining type safety.
+
+## Basic Queries
+
+### Find All
+
+Retrieve all records from a table:
+
+```typescript
+const users = await User.findAll();
+```
+
+### Find One
+
+Retrieve a single record:
+
+```typescript
+const user = await User.findOne({
+  where: { email: 'john@example.com' },
+});
+```
+
+### Find By Primary Key
+
+Retrieve a record by its primary key:
+
+```typescript
+const user = await User.findByPk('user-id-123');
+```
+
+## Where Conditions
+
+### Simple Conditions
+
+```typescript
+const users = await User.findAll({
+  where: {
+    status: 'active',
+    role: 'admin',
+  },
+});
+```
+
+### Comparison Operators
+
+ClickORM supports various comparison operators:
+
+```typescript
+const users = await User.findAll({
+  where: {
+    age: { $gt: 18 },           // Greater than
+    score: { $gte: 90 },         // Greater than or equal
+    views: { $lt: 1000 },        // Less than
+    price: { $lte: 99.99 },      // Less than or equal
+    status: { $ne: 'deleted' },  // Not equal
+    role: { $in: ['admin', 'moderator'] },  // In array
+    category: { $nin: ['spam', 'archived'] }, // Not in array
+  },
+});
+```
+
+### Pattern Matching
+
+```typescript
+// LIKE operator
+const users = await User.findAll({
+  where: {
+    email: { $like: '%@example.com' },
+    name: { $notLike: '%Admin%' },
+  },
+});
+
+// ILIKE (case-insensitive)
+const users = await User.findAll({
+  where: {
+    name: { $ilike: 'john%' },
+  },
+});
+```
+
+### Range Queries
+
+```typescript
+const users = await User.findAll({
+  where: {
+    age: { $between: [18, 65] },
+    created_at: {
+      $gte: new Date('2024-01-01'),
+      $lte: new Date('2024-12-31'),
+    },
+  },
+});
+```
+
+### NULL Checks
+
+```typescript
+const users = await User.findAll({
+  where: {
+    deleted_at: { $null: true },   // IS NULL
+    bio: { $notNull: true },        // IS NOT NULL
+  },
+});
+```
+
+## Logical Operators
+
+### AND Conditions
+
+All conditions in the same object are combined with AND:
+
+```typescript
+const users = await User.findAll({
+  where: {
+    status: 'active',
+    role: 'admin',
+    age: { $gte: 18 },
+  },
+});
+// WHERE status = 'active' AND role = 'admin' AND age >= 18
+```
+
+### OR Conditions
+
+Use the `$or` operator:
+
+```typescript
+const users = await User.findAll({
+  where: {
+    $or: [
+      { role: 'admin' },
+      { role: 'moderator' },
+    ],
+  },
+});
+// WHERE (role = 'admin' OR role = 'moderator')
+```
+
+### Complex Conditions
+
+Combine AND and OR:
+
+```typescript
+const users = await User.findAll({
+  where: {
+    status: 'active',
+    $or: [
+      { role: 'admin' },
+      { permissions: { $like: '%write%' } },
+    ],
+  },
+});
+// WHERE status = 'active' AND (role = 'admin' OR permissions LIKE '%write%')
+```
+
+### NOT Conditions
+
+```typescript
+const users = await User.findAll({
+  where: {
+    $not: {
+      status: 'deleted',
+    },
+  },
+});
+```
+
+## Query Builder
+
+Use the fluent query builder for more complex queries:
+
+### Select Specific Columns
+
+```typescript
+const users = await User
+  .select('id', 'name', 'email')
+  .where({ status: 'active' })
+  .execute();
+```
+
+### Distinct
+
+```typescript
+const roles = await User
+  .select('role')
+  .distinct()
+  .execute();
+```
+
+### Ordering
+
+```typescript
+// Single column
+const users = await User
+  .orderBy({ created_at: 'DESC' })
+  .execute();
+
+// Multiple columns
+const users = await User
+  .orderBy({ status: 'ASC', created_at: 'DESC' })
+  .execute();
+
+// Using query builder
+const users = await User
+  .select('*')
+  .orderBy({ score: 'DESC' })
+  .thenBy({ name: 'ASC' })
+  .execute();
+```
+
+### Limit and Offset
+
+```typescript
+// Pagination
+const users = await User
+  .limit(20)
+  .offset(40)
+  .execute();
+
+// Top N
+const topScorers = await User
+  .orderBy({ score: 'DESC' })
+  .limit(10)
+  .execute();
+```
+
+### Grouping
+
+```typescript
+const stats = await User
+  .select('role', 'COUNT(*) as count')
+  .groupBy('role')
+  .execute();
+```
+
+### Having Clause
+
+```typescript
+const activeRoles = await User
+  .select('role', 'COUNT(*) as count')
+  .groupBy('role')
+  .having('count > ?', [5])
+  .execute();
+```
+
+## Joins
+
+### Inner Join
+
+```typescript
+const posts = await Post
+  .select('posts.*', 'users.name as author_name')
+  .join('users', 'posts.user_id', 'users.id')
+  .where({ 'posts.status': 'published' })
+  .execute();
+```
+
+### Left Join
+
+```typescript
+const users = await User
+  .select('users.*', 'COUNT(posts.id) as post_count')
+  .leftJoin('posts', 'users.id', 'posts.user_id')
+  .groupBy('users.id')
+  .execute();
+```
+
+### Multiple Joins
+
+```typescript
+const data = await Post
+  .select('posts.*', 'users.name', 'categories.title as category')
+  .join('users', 'posts.user_id', 'users.id')
+  .join('categories', 'posts.category_id', 'categories.id')
+  .execute();
+```
+
+## Aggregations
+
+### Count
+
+```typescript
+const count = await User.count();
+
+const activeCount = await User.count({
+  where: { status: 'active' },
+});
+```
+
+### Sum, Average, Min, Max
+
+```typescript
+const stats = await Order
+  .select(
+    'SUM(amount) as total',
+    'AVG(amount) as average',
+    'MIN(amount) as minimum',
+    'MAX(amount) as maximum'
+  )
+  .execute();
+```
+
+### Group By with Aggregations
+
+```typescript
+const salesByCategory = await Order
+  .select(
+    'category',
+    'SUM(amount) as total_sales',
+    'COUNT(*) as order_count',
+    'AVG(amount) as avg_order'
+  )
+  .groupBy('category')
+  .orderBy({ total_sales: 'DESC' })
+  .execute();
+```
+
+## Subqueries
+
+### IN Subquery
+
+```typescript
+const users = await User.findAll({
+  where: {
+    id: {
+      $in: User.select('user_id').from('orders').where({ status: 'completed' }),
+    },
+  },
+});
+```
+
+### EXISTS Subquery
+
+```typescript
+const users = await User
+  .select('*')
+  .whereExists(
+    Post.select('1').where('posts.user_id', '=', 'users.id')
+  )
+  .execute();
+```
+
+## Raw Queries
+
+### Execute Raw SQL
+
+```typescript
+const results = await User.query(`
+  SELECT * FROM users
+  WHERE created_at >= '2024-01-01'
+  ORDER BY created_at DESC
+`);
+```
+
+### With Parameters
+
+```typescript
+const results = await User.query(
+  'SELECT * FROM users WHERE age > ? AND status = ?',
+  [18, 'active']
+);
+```
+
+### Raw Expressions
+
+```typescript
+const users = await User
+  .select('*', User.raw('DATE(created_at) as signup_date'))
+  .execute();
+```
+
+## ClickHouse-Specific Features
+
+### PREWHERE Clause
+
+Optimize queries with PREWHERE:
+
+```typescript
+const users = await User
+  .select('*')
+  .prewhere({ status: 'active' })
+  .where({ age: { $gte: 18 } })
+  .execute();
+```
+
+### SAMPLE Clause
+
+Query a sample of data:
+
+```typescript
+// Sample 10% of rows
+const sample = await User
+  .select('*')
+  .sample(0.1)
+  .execute();
+
+// Sample 1000 rows
+const sample = await User
+  .select('*')
+  .sample(1000, 'rows')
+  .execute();
+```
+
+### FINAL Modifier
+
+Get final merged results:
+
+```typescript
+const users = await User
+  .select('*')
+  .final()
+  .execute();
+```
+
+### Array Functions
+
+```typescript
+const posts = await Post
+  .select('*')
+  .where('has(tags, ?)', ['javascript'])
+  .execute();
+
+const users = await User
+  .select('id', 'name', 'arrayJoin(interests) as interest')
+  .execute();
+```
+
+### Time Series Queries
+
+```typescript
+const dailyStats = await Event
+  .select(
+    'toDate(created_at) as date',
+    'COUNT(*) as events',
+    'COUNT(DISTINCT user_id) as unique_users'
+  )
+  .where({
+    created_at: {
+      $gte: new Date('2024-01-01'),
+    },
+  })
+  .groupBy('date')
+  .orderBy({ date: 'ASC' })
+  .execute();
+```
+
+## Query Options
+
+### Timeout
+
+Set query timeout:
+
+```typescript
+const users = await User.findAll({
+  where: { status: 'active' },
+  timeout: 30000, // 30 seconds
+});
+```
+
+### Read-Only
+
+Execute read-only queries:
+
+```typescript
+const users = await User.findAll({
+  readonly: true,
+});
+```
+
+### Settings
+
+Pass ClickHouse settings:
+
+```typescript
+const users = await User.findAll({
+  settings: {
+    max_threads: 4,
+    max_memory_usage: 10000000000,
+  },
+});
+```
+
+## Performance Tips
+
+### 1. Use PREWHERE
+
+Filter early with PREWHERE for better performance:
+
+```typescript
+// Good
+const users = await User
+  .prewhere({ status: 'active' })
+  .where({ age: { $gte: 18 } })
+  .execute();
+
+// Less efficient
+const users = await User
+  .where({ status: 'active', age: { $gte: 18 } })
+  .execute();
+```
+
+### 2. Select Only Needed Columns
+
+Don't select all columns if you don't need them:
+
+```typescript
+// Good
+const users = await User.select('id', 'name').execute();
+
+// Wasteful
+const users = await User.select('*').execute();
+```
+
+### 3. Use Appropriate Indexes
+
+Ensure ORDER BY columns match table ordering:
+
+```typescript
+// Efficient if table ordered by created_at
+const users = await User
+  .orderBy({ created_at: 'DESC' })
+  .limit(100)
+  .execute();
+```
+
+### 4. Batch Operations
+
+Use batch operations for multiple inserts:
+
+```typescript
+await User.insertMany([
+  { name: 'User 1', email: 'user1@example.com' },
+  { name: 'User 2', email: 'user2@example.com' },
+  // ... thousands more
+]);
+```
+
+### 5. Use Materialized Views
+
+Create materialized views for frequently queried aggregations:
+
+```typescript
+await orm.query(`
+  CREATE MATERIALIZED VIEW user_stats
+  ENGINE = SummingMergeTree()
+  ORDER BY user_id
+  AS SELECT
+    user_id,
+    COUNT(*) as post_count,
+    SUM(views) as total_views
+  FROM posts
+  GROUP BY user_id
+`);
+```
+
+## Debugging Queries
+
+### Enable Query Logging
+
+```typescript
+const orm = new ClickORM({
+  host: 'localhost',
+  port: 8123,
+  debug: true, // Log all queries
+});
+```
+
+### Get Generated SQL
+
+```typescript
+const query = User
+  .select('*')
+  .where({ status: 'active' })
+  .toSQL();
+
+console.log(query); // View the generated SQL
+```
+
+### Explain Query
+
+```typescript
+const plan = await User
+  .select('*')
+  .where({ status: 'active' })
+  .explain();
+
+console.log(plan); // View query execution plan
+```
+
+## Next Steps
+
+- Learn about [Relations](/docs/core-concepts/relations) for working with related data
+- Explore [Hooks](/docs/core-concepts/hooks) for query lifecycle events
+- Check out [Examples](/docs/examples/advanced-queries) for real-world query patterns
+- Read the [API Reference](/docs/api/query-builder) for complete query builder documentation

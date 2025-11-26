@@ -1,0 +1,507 @@
+---
+title: Client API
+description: Complete API reference for ClickORM Client
+---
+
+# Client API
+
+The `ClickORM` client is the main entry point for interacting with ClickHouse databases.
+
+## Constructor
+
+### new ClickORM(config)
+
+Creates a new ClickORM client instance.
+
+```typescript
+import { ClickORM } from '@clickorm/core';
+
+const orm = new ClickORM({
+  host: 'localhost',
+  port: 8123,
+  database: 'default',
+  username: 'default',
+  password: '',
+});
+```
+
+#### Parameters
+
+| Parameter | Type | Required | Default | Description |
+|-----------|------|----------|---------|-------------|
+| `config` | `ClientConfig` | Yes | - | Configuration object |
+
+#### ClientConfig
+
+```typescript
+interface ClientConfig {
+  host: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  password?: string;
+  protocol?: 'http' | 'https';
+  compression?: boolean;
+  timeout?: number;
+  maxRetries?: number;
+  debug?: boolean;
+  poolSize?: number;
+  sessionId?: string;
+  settings?: Record<string, any>;
+}
+```
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `host` | string | Required | ClickHouse server host |
+| `port` | number | `8123` | ClickHouse HTTP port |
+| `database` | string | `'default'` | Default database name |
+| `username` | string | `'default'` | Authentication username |
+| `password` | string | `''` | Authentication password |
+| `protocol` | string | `'http'` | Protocol (http or https) |
+| `compression` | boolean | `false` | Enable compression |
+| `timeout` | number | `30000` | Query timeout in ms |
+| `maxRetries` | number | `3` | Max retry attempts |
+| `debug` | boolean | `false` | Enable debug logging |
+| `poolSize` | number | `10` | Connection pool size |
+| `sessionId` | string | - | Session ID for stateful queries |
+| `settings` | object | `{}` | ClickHouse settings |
+
+## Methods
+
+### query()
+
+Execute a raw SQL query.
+
+```typescript
+const results = await orm.query('SELECT * FROM users WHERE age > 18');
+```
+
+#### Signature
+
+```typescript
+query<T = any>(sql: string, params?: any[]): Promise<T[]>
+```
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `sql` | string | Yes | SQL query string |
+| `params` | any[] | No | Query parameters |
+
+#### Returns
+
+`Promise<T[]>` - Array of query results
+
+#### Examples
+
+```typescript
+// Simple query
+const users = await orm.query('SELECT * FROM users');
+
+// With parameters
+const adults = await orm.query(
+  'SELECT * FROM users WHERE age > ?',
+  [18]
+);
+
+// With type annotation
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+const users = await orm.query<User>('SELECT * FROM users');
+```
+
+### execute()
+
+Execute a SQL statement without returning results.
+
+```typescript
+await orm.execute('CREATE TABLE users (id UUID, name String) ENGINE = MergeTree() ORDER BY id');
+```
+
+#### Signature
+
+```typescript
+execute(sql: string, params?: any[]): Promise<void>
+```
+
+### insert()
+
+Insert data into a table.
+
+```typescript
+await orm.insert('users', {
+  id: crypto.randomUUID(),
+  name: 'John Doe',
+  email: 'john@example.com',
+});
+```
+
+#### Signature
+
+```typescript
+insert(table: string, data: Record<string, any> | Record<string, any>[]): Promise<void>
+```
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `table` | string | Yes | Table name |
+| `data` | object/array | Yes | Data to insert |
+
+#### Examples
+
+```typescript
+// Insert single record
+await orm.insert('users', {
+  id: '123',
+  name: 'John',
+});
+
+// Insert multiple records
+await orm.insert('users', [
+  { id: '123', name: 'John' },
+  { id: '456', name: 'Jane' },
+]);
+```
+
+### sync()
+
+Synchronize model schema with database.
+
+```typescript
+await orm.sync(User);
+```
+
+#### Signature
+
+```typescript
+sync(model: typeof Model, options?: SyncOptions): Promise<void>
+```
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `model` | Model class | Yes | Model to sync |
+| `options` | SyncOptions | No | Sync options |
+
+#### SyncOptions
+
+```typescript
+interface SyncOptions {
+  force?: boolean;  // Drop and recreate
+  alter?: boolean;  // Alter existing table
+}
+```
+
+#### Examples
+
+```typescript
+// Create table if not exists
+await orm.sync(User);
+
+// Drop and recreate
+await orm.sync(User, { force: true });
+
+// Alter existing table
+await orm.sync(User, { alter: true });
+```
+
+### syncAll()
+
+Synchronize all registered models.
+
+```typescript
+await orm.syncAll();
+```
+
+#### Signature
+
+```typescript
+syncAll(options?: SyncOptions): Promise<void>
+```
+
+### transaction()
+
+Execute queries in a transaction.
+
+```typescript
+await orm.transaction(async (trx) => {
+  await User.create({ name: 'John' }, { transaction: trx });
+  await Post.create({ title: 'Hello' }, { transaction: trx });
+});
+```
+
+#### Signature
+
+```typescript
+transaction<T>(callback: (trx: Transaction) => Promise<T>): Promise<T>
+```
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `callback` | function | Yes | Transaction callback |
+
+#### Examples
+
+```typescript
+// Basic transaction
+await orm.transaction(async (trx) => {
+  const user = await User.create(userData, { transaction: trx });
+  await Profile.create({ user_id: user.id }, { transaction: trx });
+});
+
+// With error handling
+try {
+  await orm.transaction(async (trx) => {
+    await User.create(userData, { transaction: trx });
+    throw new Error('Rollback');
+  });
+} catch (error) {
+  console.log('Transaction rolled back');
+}
+```
+
+### ping()
+
+Check database connectivity.
+
+```typescript
+const isConnected = await orm.ping();
+```
+
+#### Signature
+
+```typescript
+ping(): Promise<boolean>
+```
+
+#### Returns
+
+`Promise<boolean>` - true if connected
+
+### getConnection()
+
+Get underlying database connection.
+
+```typescript
+const connection = orm.getConnection();
+```
+
+#### Signature
+
+```typescript
+getConnection(): Connection
+```
+
+### close()
+
+Close all database connections.
+
+```typescript
+await orm.close();
+```
+
+#### Signature
+
+```typescript
+close(): Promise<void>
+```
+
+## Properties
+
+### database
+
+Current database name.
+
+```typescript
+console.log(orm.database); // 'default'
+```
+
+### isConnected
+
+Connection status.
+
+```typescript
+if (orm.isConnected) {
+  console.log('Connected to ClickHouse');
+}
+```
+
+## Events
+
+The client emits various events:
+
+```typescript
+orm.on('query', (sql: string) => {
+  console.log('Executing query:', sql);
+});
+
+orm.on('error', (error: Error) => {
+  console.error('Database error:', error);
+});
+
+orm.on('connected', () => {
+  console.log('Connected to database');
+});
+
+orm.on('disconnected', () => {
+  console.log('Disconnected from database');
+});
+```
+
+### Available Events
+
+| Event | Parameters | Description |
+|-------|------------|-------------|
+| `query` | `(sql: string)` | Before query execution |
+| `result` | `(result: any)` | After query execution |
+| `error` | `(error: Error)` | On error |
+| `connected` | `()` | On connection |
+| `disconnected` | `()` | On disconnection |
+
+## Advanced Configuration
+
+### Connection Pooling
+
+```typescript
+const orm = new ClickORM({
+  host: 'localhost',
+  poolSize: 20,
+  poolMin: 5,
+  poolMax: 50,
+  poolIdleTimeout: 30000,
+});
+```
+
+### SSL/TLS
+
+```typescript
+const orm = new ClickORM({
+  host: 'secure.clickhouse.com',
+  protocol: 'https',
+  ssl: {
+    ca: fs.readFileSync('ca.pem'),
+    cert: fs.readFileSync('client-cert.pem'),
+    key: fs.readFileSync('client-key.pem'),
+  },
+});
+```
+
+### Custom Settings
+
+```typescript
+const orm = new ClickORM({
+  host: 'localhost',
+  settings: {
+    max_threads: 4,
+    max_memory_usage: 10000000000,
+    join_use_nulls: 1,
+    enable_http_compression: 1,
+  },
+});
+```
+
+### Query Settings Per Request
+
+```typescript
+await orm.query('SELECT * FROM large_table', [], {
+  settings: {
+    max_execution_time: 60,
+    max_rows_to_read: 1000000,
+  },
+});
+```
+
+## Examples
+
+### Basic Setup
+
+```typescript
+import { ClickORM } from '@clickorm/core';
+
+const orm = new ClickORM({
+  host: process.env.CLICKHOUSE_HOST || 'localhost',
+  port: Number(process.env.CLICKHOUSE_PORT) || 8123,
+  database: process.env.CLICKHOUSE_DATABASE || 'myapp',
+  username: process.env.CLICKHOUSE_USERNAME || 'default',
+  password: process.env.CLICKHOUSE_PASSWORD || '',
+  debug: process.env.NODE_ENV === 'development',
+});
+
+export default orm;
+```
+
+### Multiple Databases
+
+```typescript
+const analyticsDb = new ClickORM({
+  host: 'localhost',
+  database: 'analytics',
+});
+
+const usersDb = new ClickORM({
+  host: 'localhost',
+  database: 'users',
+});
+
+// Use different databases
+const events = await analyticsDb.query('SELECT * FROM events');
+const users = await usersDb.query('SELECT * FROM users');
+```
+
+### Health Check
+
+```typescript
+async function healthCheck() {
+  try {
+    const isHealthy = await orm.ping();
+    if (!isHealthy) {
+      throw new Error('Database not responding');
+    }
+    
+    const result = await orm.query('SELECT version()');
+    console.log('ClickHouse version:', result[0].version);
+    
+    return { status: 'healthy', version: result[0].version };
+  } catch (error) {
+    return { status: 'unhealthy', error: error.message };
+  }
+}
+```
+
+### Graceful Shutdown
+
+```typescript
+process.on('SIGTERM', async () => {
+  console.log('Closing database connections...');
+  await orm.close();
+  process.exit(0);
+});
+```
+
+## Best Practices
+
+1. **Reuse Client Instances**: Create one client instance and reuse it throughout your application
+2. **Use Environment Variables**: Store credentials in environment variables
+3. **Enable Connection Pooling**: Configure appropriate pool size for your workload
+4. **Handle Errors**: Always wrap database operations in try-catch blocks
+5. **Close Connections**: Close connections on application shutdown
+6. **Use Debug Mode**: Enable debug mode during development to see queries
+7. **Set Timeouts**: Configure appropriate timeouts for your queries
+
+## See Also
+
+- [Model API](/docs/api/model)
+- [Query Builder API](/docs/api/query-builder)
+- [Installation](/docs/installation)
+- [Quick Start](/docs/quick-start)

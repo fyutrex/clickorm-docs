@@ -1,0 +1,671 @@
+---
+title: Relations
+description: Define and work with model relationships
+---
+
+# Relations
+
+ClickORM provides powerful relationship support to help you work with related data across tables.
+
+## Relationship Types
+
+### One-to-Many
+
+Define a one-to-many relationship where one record has many related records:
+
+```typescript
+import { Model, Column, Table, HasMany } from '@clickorm/core';
+
+@Table('users')
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @HasMany(() => Post, 'user_id')
+  posts!: Post[];
+}
+
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  @Column({ type: 'UUID' })
+  user_id!: string;
+}
+```
+
+### Belongs To
+
+Define the inverse of a one-to-many relationship:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  @BelongsTo(() => User, 'user_id')
+  user!: User;
+}
+```
+
+### Many-to-Many
+
+Define a many-to-many relationship through a junction table:
+
+```typescript
+@Table('students')
+class Student extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @ManyToMany(() => Course, 'student_courses', 'student_id', 'course_id')
+  courses!: Course[];
+}
+
+@Table('courses')
+class Course extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  @ManyToMany(() => Student, 'student_courses', 'course_id', 'student_id')
+  students!: Student[];
+}
+
+@Table('student_courses')
+class StudentCourse extends Model {
+  @Column({ type: 'UUID' })
+  student_id!: string;
+
+  @Column({ type: 'UUID' })
+  course_id!: string;
+
+  @Column({ type: 'Date' })
+  enrolled_at!: Date;
+}
+```
+
+### One-to-One
+
+Define a one-to-one relationship:
+
+```typescript
+@Table('users')
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @HasOne(() => Profile, 'user_id')
+  profile!: Profile;
+}
+
+@Table('profiles')
+class Profile extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'UUID', unique: true })
+  user_id!: string;
+
+  @Column({ type: 'String' })
+  bio!: string;
+
+  @BelongsTo(() => User, 'user_id')
+  user!: User;
+}
+```
+
+## Eager Loading
+
+Load related data efficiently with eager loading:
+
+### Include Single Relation
+
+```typescript
+const posts = await Post.findAll({
+  include: ['user'],
+});
+
+// Access related data
+posts.forEach(post => {
+  console.log(post.title, 'by', post.user.name);
+});
+```
+
+### Include Multiple Relations
+
+```typescript
+const posts = await Post.findAll({
+  include: ['user', 'comments', 'tags'],
+});
+```
+
+### Nested Relations
+
+Load deeply nested relationships:
+
+```typescript
+const users = await User.findAll({
+  include: [
+    {
+      relation: 'posts',
+      include: ['comments', 'tags'],
+    },
+  ],
+});
+```
+
+### Conditional Includes
+
+Filter related records:
+
+```typescript
+const users = await User.findAll({
+  include: [
+    {
+      relation: 'posts',
+      where: { status: 'published' },
+      orderBy: { created_at: 'DESC' },
+      limit: 5,
+    },
+  ],
+});
+```
+
+## Lazy Loading
+
+Load relationships on demand:
+
+```typescript
+const user = await User.findByPk(userId);
+
+// Load posts when needed
+const posts = await user.getPosts();
+
+// With conditions
+const publishedPosts = await user.getPosts({
+  where: { status: 'published' },
+});
+```
+
+## Association Methods
+
+### HasMany Methods
+
+```typescript
+const user = await User.findByPk(userId);
+
+// Get all posts
+const posts = await user.getPosts();
+
+// Count posts
+const count = await user.countPosts();
+
+// Check if post exists
+const hasPosts = await user.hasPosts();
+
+// Add posts
+await user.addPost(post);
+await user.addPosts([post1, post2, post3]);
+
+// Set posts (replaces existing)
+await user.setPosts([post1, post2]);
+
+// Remove posts
+await user.removePost(post);
+await user.removePosts([post1, post2]);
+
+// Create post directly
+const newPost = await user.createPost({
+  title: 'New Post',
+  content: 'Content...',
+});
+```
+
+### BelongsTo Methods
+
+```typescript
+const post = await Post.findByPk(postId);
+
+// Get user
+const user = await post.getUser();
+
+// Set user
+await post.setUser(user);
+
+// Create user
+const newUser = await post.createUser({
+  name: 'John Doe',
+  email: 'john@example.com',
+});
+```
+
+### ManyToMany Methods
+
+```typescript
+const student = await Student.findByPk(studentId);
+
+// Get courses
+const courses = await student.getCourses();
+
+// Count courses
+const count = await student.countCourses();
+
+// Add courses
+await student.addCourse(course);
+await student.addCourses([course1, course2]);
+
+// Remove courses
+await student.removeCourse(course);
+await student.removeCourses([course1, course2]);
+
+// Check if course exists
+const hasCourse = await student.hasCourse(course);
+
+// Set courses (replaces existing)
+await student.setCourses([course1, course2]);
+```
+
+## Complex Relationships
+
+### Polymorphic Relations
+
+Create polymorphic relationships:
+
+```typescript
+@Table('comments')
+class Comment extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  content!: string;
+
+  @Column({ type: 'UUID' })
+  commentable_id!: string;
+
+  @Column({ type: 'String' })
+  commentable_type!: string;
+
+  @Polymorphic('commentable')
+  commentable!: Post | Video;
+}
+
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @MorphMany(() => Comment, 'commentable')
+  comments!: Comment[];
+}
+
+@Table('videos')
+class Video extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @MorphMany(() => Comment, 'commentable')
+  comments!: Comment[];
+}
+```
+
+### Self-Referencing Relations
+
+Create hierarchical data structures:
+
+```typescript
+@Table('categories')
+class Category extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'UUID', nullable: true })
+  parent_id?: string;
+
+  @BelongsTo(() => Category, 'parent_id')
+  parent?: Category;
+
+  @HasMany(() => Category, 'parent_id')
+  children!: Category[];
+}
+
+// Usage
+const category = await Category.findByPk(categoryId, {
+  include: ['parent', 'children'],
+});
+```
+
+### Through Relations
+
+Access data through intermediate relationships:
+
+```typescript
+@Table('countries')
+class Country extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @HasMany(() => User, 'country_id')
+  users!: User[];
+
+  @HasManyThrough(() => Post, () => User, 'country_id', 'user_id')
+  posts!: Post[];
+}
+
+// Get all posts from a country's users
+const country = await Country.findByPk(countryId, {
+  include: ['posts'],
+});
+```
+
+## Relationship Options
+
+### Foreign Key Options
+
+Customize foreign key behavior:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID' })
+  @ForeignKey({
+    references: { table: 'users', column: 'id' },
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE',
+  })
+  user_id!: string;
+
+  @BelongsTo(() => User, 'user_id')
+  user!: User;
+}
+```
+
+### Custom Join Conditions
+
+Add custom conditions to joins:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @BelongsTo(() => User, 'user_id', {
+    where: { status: 'active' },
+  })
+  activeUser?: User;
+}
+```
+
+### Aliases
+
+Use custom property names for relationships:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @BelongsTo(() => User, 'author_id', { as: 'author' })
+  author!: User;
+
+  @BelongsTo(() => User, 'editor_id', { as: 'editor' })
+  editor!: User;
+}
+
+// Usage
+const post = await Post.findByPk(postId, {
+  include: ['author', 'editor'],
+});
+```
+
+## Querying Relations
+
+### Filter by Related Data
+
+```typescript
+// Find users with published posts
+const users = await User.findAll({
+  include: [{
+    relation: 'posts',
+    where: { status: 'published' },
+    required: true, // INNER JOIN
+  }],
+});
+
+// Find users with or without posts
+const users = await User.findAll({
+  include: [{
+    relation: 'posts',
+    required: false, // LEFT JOIN
+  }],
+});
+```
+
+### Where Has
+
+Query based on related data existence:
+
+```typescript
+// Find users who have posts
+const users = await User.findAll({
+  whereHas: 'posts',
+});
+
+// Find users with published posts
+const users = await User.findAll({
+  whereHas: {
+    relation: 'posts',
+    where: { status: 'published' },
+  },
+});
+
+// Find users with at least 5 posts
+const users = await User.findAll({
+  whereHas: {
+    relation: 'posts',
+    count: { $gte: 5 },
+  },
+});
+```
+
+### Where Doesn't Have
+
+Query based on absence of related data:
+
+```typescript
+// Find users without posts
+const users = await User.findAll({
+  whereDoesntHave: 'posts',
+});
+
+// Find users without published posts
+const users = await User.findAll({
+  whereDoesntHave: {
+    relation: 'posts',
+    where: { status: 'published' },
+  },
+});
+```
+
+### Count Related Records
+
+```typescript
+const users = await User.findAll({
+  select: ['id', 'name'],
+  withCount: ['posts'],
+});
+
+users.forEach(user => {
+  console.log(`${user.name} has ${user.posts_count} posts`);
+});
+```
+
+## Performance Optimization
+
+### Select Specific Columns
+
+Reduce data transfer by selecting only needed columns:
+
+```typescript
+const posts = await Post.findAll({
+  select: ['id', 'title'],
+  include: [{
+    relation: 'user',
+    select: ['id', 'name'], // Only load id and name
+  }],
+});
+```
+
+### Batch Loading
+
+Prevent N+1 query problems with batch loading:
+
+```typescript
+// Good: Uses single query to load all users
+const posts = await Post.findAll({
+  include: ['user'],
+});
+
+// Bad: N+1 problem
+const posts = await Post.findAll();
+for (const post of posts) {
+  const user = await post.getUser(); // Separate query for each post
+}
+```
+
+### Pagination with Relations
+
+```typescript
+const { rows, count } = await Post.findAndCountAll({
+  include: ['user', 'tags'],
+  limit: 20,
+  offset: 0,
+  distinct: true, // Count distinct rows when using joins
+});
+```
+
+### Subquery Strategies
+
+Use subqueries for complex filtering:
+
+```typescript
+const users = await User.findAll({
+  where: {
+    id: {
+      $in: Post
+        .select('user_id')
+        .where({ status: 'published' })
+        .groupBy('user_id')
+        .having('COUNT(*) > ?', [10]),
+    },
+  },
+});
+```
+
+## Best Practices
+
+### 1. Use Eager Loading Wisely
+
+```typescript
+// Good: Load only what you need
+const posts = await Post.findAll({
+  include: ['user'],
+});
+
+// Avoid: Loading unnecessary data
+const posts = await Post.findAll({
+  include: ['user', 'comments', 'tags', 'likes'], // Too much?
+});
+```
+
+### 2. Index Foreign Keys
+
+Always index foreign key columns:
+
+```typescript
+@Table('posts', {
+  indexes: [
+    { columns: ['user_id'] },
+    { columns: ['category_id'] },
+  ],
+})
+class Post extends Model {
+  // ...
+}
+```
+
+### 3. Use Through Tables for Many-to-Many
+
+Create explicit junction tables:
+
+```typescript
+// Good: Explicit junction table
+@Table('user_roles')
+class UserRole extends Model {
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  @Column({ type: 'UUID' })
+  role_id!: string;
+
+  @Column({ type: 'DateTime' })
+  granted_at!: Date;
+}
+```
+
+### 4. Consider ClickHouse Limitations
+
+ClickHouse doesn't support traditional foreign keys:
+
+- Relations are handled at the application level
+- No cascading deletes at database level
+- Implement cleanup logic in your application
+- Consider denormalization for analytical queries
+
+### 5. Denormalize When Appropriate
+
+For analytical workloads, sometimes duplication is better:
+
+```typescript
+@Table('analytics_events')
+class AnalyticsEvent extends Model {
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  // Denormalized user data for faster queries
+  @Column({ type: 'String' })
+  user_country!: string;
+
+  @Column({ type: 'String' })
+  user_tier!: string;
+}
+```
+
+## Next Steps
+
+- Learn about [Hooks](/docs/core-concepts/hooks) for relationship lifecycle events
+- Explore [Schemas](/docs/core-concepts/schemas) for managing related tables
+- Check out [Examples](/docs/examples/real-world) for real-world relationship patterns
+- Read the [API Reference](/docs/api/model) for complete relationship methods

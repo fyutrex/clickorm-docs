@@ -1,0 +1,357 @@
+---
+title: Quick Start
+description: Get started with ClickORM in minutes
+---
+
+# Quick Start
+
+This guide will help you get up and running with ClickORM in just a few minutes.
+
+## Basic Setup
+
+### 1. Install ClickORM
+
+```bash
+npm install clickorm
+```
+
+### 2. Initialize Client
+
+Create a new file `db.ts` to configure your ClickORM client:
+
+```typescript
+import { ClickORM } from '@clickorm/core';
+
+export const orm = new ClickORM({
+  host: 'localhost',
+  port: 8123,
+  database: 'default',
+  username: 'default',
+  password: '',
+});
+```
+
+### 3. Define Your First Model
+
+Create a `User` model in `models/user.ts`:
+
+```typescript
+import { Model, Column, Table } from '@clickorm/core';
+
+@Table('users')
+export class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'String' })
+  email!: string;
+
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+}
+```
+
+### 4. Create Table
+
+Sync your model with the database:
+
+```typescript
+import { orm } from './db';
+import { User } from './models/user';
+
+async function setup() {
+  // Create table from model
+  await orm.sync(User);
+  console.log('Table created successfully!');
+}
+
+setup();
+```
+
+### 5. Perform CRUD Operations
+
+Now you can start using your model:
+
+```typescript
+import { orm } from './db';
+import { User } from './models/user';
+
+async function main() {
+  // Create a new user
+  const user = await User.create({
+    id: crypto.randomUUID(),
+    name: 'John Doe',
+    email: 'john@example.com',
+    created_at: new Date(),
+  });
+
+  console.log('Created user:', user);
+
+  // Find all users
+  const users = await User.findAll();
+  console.log('All users:', users);
+
+  // Find user by email
+  const foundUser = await User.findOne({
+    where: { email: 'john@example.com' }
+  });
+  console.log('Found user:', foundUser);
+
+  // Update user
+  await User.update(
+    { name: 'Jane Doe' },
+    { where: { email: 'john@example.com' } }
+  );
+
+  // Delete user
+  await User.delete({
+    where: { email: 'john@example.com' }
+  });
+}
+
+main();
+```
+
+## Complete Example
+
+Here's a complete working example:
+
+```typescript
+import { ClickORM, Model, Column, Table } from '@clickorm/core';
+
+// 1. Configure client
+const orm = new ClickORM({
+  host: 'localhost',
+  port: 8123,
+  database: 'myapp',
+});
+
+// 2. Define model
+@Table('products')
+class Product extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'Float64' })
+  price!: number;
+
+  @Column({ type: 'Int32' })
+  stock!: number;
+
+  @Column({ type: 'DateTime' })
+  created_at!: Date;
+}
+
+// 3. Use the model
+async function run() {
+  // Create table
+  await orm.sync(Product);
+
+  // Insert data
+  const product = await Product.create({
+    id: crypto.randomUUID(),
+    name: 'Laptop',
+    price: 999.99,
+    stock: 50,
+    created_at: new Date(),
+  });
+
+  // Query data
+  const products = await Product.findAll({
+    where: { stock: { $gt: 0 } },
+    orderBy: { price: 'DESC' },
+    limit: 10,
+  });
+
+  console.log('Products:', products);
+}
+
+run();
+```
+
+## Query Builder Example
+
+ClickORM provides a powerful query builder for complex queries:
+
+```typescript
+const results = await User
+  .select('name', 'email')
+  .where({ created_at: { $gte: new Date('2024-01-01') } })
+  .andWhere({ email: { $like: '%@example.com' } })
+  .orderBy({ created_at: 'DESC' })
+  .limit(20)
+  .execute();
+```
+
+## With Relations
+
+Define relationships between models:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  @Column({ type: 'UUID' })
+  user_id!: string;
+
+  @BelongsTo(() => User, 'user_id')
+  user!: User;
+}
+
+// Query with relations
+const posts = await Post.findAll({
+  include: ['user'],
+});
+```
+
+## Environment Variables
+
+For production, use environment variables:
+
+```bash
+# .env
+CLICKHOUSE_HOST=your-host.com
+CLICKHOUSE_PORT=8123
+CLICKHOUSE_DATABASE=production
+CLICKHOUSE_USERNAME=admin
+CLICKHOUSE_PASSWORD=secret
+```
+
+```typescript
+import { ClickORM } from '@clickorm/core';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+export const orm = new ClickORM({
+  host: process.env.CLICKHOUSE_HOST,
+  port: Number(process.env.CLICKHOUSE_PORT),
+  database: process.env.CLICKHOUSE_DATABASE,
+  username: process.env.CLICKHOUSE_USERNAME,
+  password: process.env.CLICKHOUSE_PASSWORD,
+});
+```
+
+## Next Steps
+
+Now that you have the basics down, explore more features:
+
+- [Models](/docs/core-concepts/models) - Learn about model decorators and options
+- [Queries](/docs/core-concepts/queries) - Master the query builder
+- [Relations](/docs/core-concepts/relations) - Define relationships between models
+- [Hooks](/docs/core-concepts/hooks) - Add lifecycle hooks to your models
+- [API Reference](/docs/api/client) - Complete API documentation
+
+## Common Patterns
+
+### Timestamps
+
+Add automatic timestamps to your models:
+
+```typescript
+@Table('posts')
+class Post extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  title!: string;
+
+  @Column({ type: 'DateTime', default: () => new Date() })
+  created_at!: Date;
+
+  @Column({ type: 'DateTime', onUpdate: () => new Date() })
+  updated_at!: Date;
+}
+```
+
+### Validation
+
+Add validation to your models:
+
+```typescript
+import { Model, Column, Table, Validate } from '@clickorm/core';
+
+@Table('users')
+class User extends Model {
+  @Column({ type: 'String' })
+  @Validate({ minLength: 2, maxLength: 50 })
+  name!: string;
+
+  @Column({ type: 'String' })
+  @Validate({ email: true })
+  email!: string;
+
+  @Column({ type: 'Int32' })
+  @Validate({ min: 0, max: 150 })
+  age!: number;
+}
+```
+
+### Soft Deletes
+
+Enable soft deletes for your models:
+
+```typescript
+@Table('users', { softDelete: true })
+class User extends Model {
+  @Column({ type: 'UUID', primary: true })
+  id!: string;
+
+  @Column({ type: 'String' })
+  name!: string;
+
+  @Column({ type: 'DateTime', nullable: true })
+  deleted_at?: Date;
+}
+
+// Soft delete
+await User.delete({ where: { id: userId } });
+
+// Include soft deleted records
+const allUsers = await User.findAll({ withDeleted: true });
+
+// Permanently delete
+await User.forceDelete({ where: { id: userId } });
+```
+
+## Troubleshooting
+
+### Connection Issues
+
+If you can't connect to ClickHouse:
+
+```typescript
+orm.on('error', (error) => {
+  console.error('Database error:', error);
+});
+
+orm.on('connected', () => {
+  console.log('Connected to ClickHouse');
+});
+```
+
+### Debug Mode
+
+Enable debug mode to see generated SQL:
+
+```typescript
+const orm = new ClickORM({
+  host: 'localhost',
+  port: 8123,
+  debug: true, // Log all SQL queries
+});
+```
+
+For more help, check out our [Examples](/docs/examples) or visit [GitHub](https://github.com/yourusername/clickorm).
