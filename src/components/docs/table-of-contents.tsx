@@ -23,7 +23,7 @@ export function TableOfContents({ className }: TableOfContentsProps) {
     // Extract headings from the document
     const headings = Array.from(
       document.querySelectorAll("article h2, article h3, article h4")
-    )
+    ) as HTMLElement[]
 
     const tocItems: TocItem[] = headings.map((heading) => ({
       id: heading.id,
@@ -33,24 +33,31 @@ export function TableOfContents({ className }: TableOfContentsProps) {
 
     setToc(tocItems)
 
-    // Set up intersection observer for active heading tracking
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id)
-          }
-        })
-      },
-      {
-        rootMargin: "-80px 0px -80% 0px",
+    const handleScroll = () => {
+      let currentActiveId = ""
+      
+      for (const heading of headings) {
+        const rect = heading.getBoundingClientRect()
+        // 120px offset to account for fixed header and some padding
+        if (rect.top <= 120) {
+          currentActiveId = heading.id
+        }
       }
-    )
 
-    headings.forEach((heading) => observer.observe(heading))
+      // If at the very top of the page, default to the first heading
+      if (!currentActiveId && headings.length > 0 && window.scrollY < 50) {
+        currentActiveId = headings[0].id
+      }
+
+      setActiveId(currentActiveId)
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    // Call once to set initial state
+    handleScroll()
 
     return () => {
-      headings.forEach((heading) => observer.unobserve(heading))
+      window.removeEventListener("scroll", handleScroll)
     }
   }, [pathname])
 

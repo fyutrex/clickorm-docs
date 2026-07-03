@@ -46,8 +46,8 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
         </main>
 
         {/* Table of Contents - Desktop Only */}
-        <aside className="hidden text-sm lg:block">
-          <div className="sticky top-20 -mt-6 h-[calc(100vh-4rem)] py-8">
+        <aside className="sticky top-14 z-30 hidden h-[calc(100vh-3.5rem)] text-sm lg:block shrink-0 overflow-y-auto">
+          <div className="py-8">
             <TableOfContents />
           </div>
         </aside>
