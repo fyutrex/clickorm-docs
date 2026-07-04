@@ -18,7 +18,6 @@ export default function DocsLayout({ children }: DocsLayoutProps) {
       <DocsHeader onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
       
       <div className="container flex-1 items-start md:grid md:grid-cols-[240px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)_200px] md:gap-6 lg:gap-10">
-        {/* Mobile Sidebar Overlay */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-30 bg-black/50 md:hidden"
