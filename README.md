@@ -1,4 +1,4 @@
-# ClickORM Documentation
+# ClickORM Documentation v: 0.0.1
 
 Official documentation website for ClickORM - A TypeScript ORM for ClickHouse.
 
